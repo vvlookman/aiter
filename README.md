@@ -1,5 +1,7 @@
 # ![](logo.png) Aiter
 
+[![Rust](https://github.com/vvlookman/aiter/actions/workflows/rust.yml/badge.svg)](https://github.com/vvlookman/aiter/actions/workflows/rust.yml)
+
 English [中文](README.zh-CN.md)
 
 Lightweight AI assistant based on deep content understanding
