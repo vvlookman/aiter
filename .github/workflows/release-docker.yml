@@ -2,19 +2,15 @@ name: Release Docker
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches: ["release"]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - run: echo "VERSION=$(sed -n 's/version = "\(.*\)"$/\1/p' Cargo.toml)" >> $GITHUB_ENV
-    
-    - run: docker build -t vvlookman/aiter:${{ env.VERSION }} .
+      - run: echo "VERSION=$(sed -n 's/version = "\(.*\)"$/\1/p' Cargo.toml)" >> $GITHUB_ENV
+
+      - run: docker build -t vvlookman/aiter:${{ env.VERSION }} .

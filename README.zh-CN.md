@@ -1,6 +1,6 @@
 # ![](logo.png) Aiter
 
-[![Rust](https://github.com/vvlookman/aiter/actions/workflows/rust.yml/badge.svg)](https://github.com/vvlookman/aiter/actions/workflows/rust.yml)
+[![Rust](https://github.com/vvlookman/aiter/actions/workflows/build.yml/badge.svg)](https://github.com/vvlookman/aiter/actions/workflows/build.yml)
 
 [English](README.md) 中文
 
