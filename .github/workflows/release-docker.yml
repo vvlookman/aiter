@@ -24,5 +24,6 @@ jobs:
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --tag vvlookman/aiter:${{ env.VERSION }} \
+            --tag vvlookman/aiter:latest \
             --push \
             .

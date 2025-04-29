@@ -52,8 +52,7 @@ aiter serve
 ### 通过 Docker 运行 Web 服务
 
 ```sh
-# 容器中数据存储路径为 /root/.local/share/aiter
-docker run -it --rm -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 aiter
+docker run -itd --rm -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 vvlookman/aiter
 ```
 
 ## 开发

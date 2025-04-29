@@ -10,10 +10,10 @@ lerna-debug.log*
 # Generated files
 auto-imports.d.ts
 components.d.ts
-node_modules
 coverage
 dist
 dist-ssr
+node_modules
 .vite
 *.local
 

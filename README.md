@@ -52,8 +52,7 @@ The default service runs at http://localhost:6868, **Notice** Only some features
 ### Run Web Service With Docker
 
 ```sh
-# The data is stored in /root/.local/share/aiter in the container
-docker run -it --rm -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 aiter
+docker run -itd --rm -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 vvlookman/aiter
 ```
 
 ## Develop
