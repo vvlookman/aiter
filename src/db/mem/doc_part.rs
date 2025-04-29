@@ -279,10 +279,6 @@ pub async fn upsert(
     doc_part: &DocPart,
     _context: &str,
 ) -> AiterResult<Option<String>> {
-    if doc_part.title.is_none() && doc_part.summary.is_none() {
-        return Ok(None);
-    }
-
     let conn = &mut open(db_path).await?;
     let tx = conn.transaction().await?;
 
