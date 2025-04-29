@@ -1,0 +1,31 @@
+@forward 'element-plus/theme-chalk/src/common/var.scss' with (
+  $colors: (
+    'primary': (
+      'base': #079d55,
+    ),
+  )
+);
+
+.el-collapse {
+  border-top: none;
+  border-bottom: none;
+
+  .el-collapse-item__header {
+    word-break: break-all;
+    overflow: hidden;
+    line-height: 1;
+  }
+}
+
+.el-message {
+  max-width: 50%;
+
+  .el-message__content {
+    overflow-wrap: anywhere;
+  }
+}
+
+.el-slider {
+  height: 18px !important;
+  --el-slider-button-size: 12px !important;
+}

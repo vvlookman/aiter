@@ -1,0 +1,47 @@
+{
+  "label": {
+    "about": "About",
+    "ai_need_screening": "The content is generated with the help of AI, so please screen it carefully.",
+    "back_to_home": "Back to Home",
+    "chat_clear": "Clear dialog",
+    "chat_deep_off": "Normal Mode",
+    "chat_deep_on": "Think Deeply",
+    "chat_freely_off": "Tight Rein",
+    "chat_freely_on": "Free Rein",
+    "chat_interrupt": "Stop output",
+    "chat_llm": "Chat LLM",
+    "chat_no_message_placeholder": "Hello, I am {who}. Please send me message.",
+    "chat_retrace": "Retrace Messages Count",
+    "chat_temperature": "Chat Temperature",
+    "chat_user_input_placeholder": "Send a message to AI",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Yes",
+    "copy": "Copy",
+    "default_ai": "Default AI",
+    "default_llm": "System Default LLM",
+    "reasoning_llm": "Reasoning LLM",
+    "reuse": "Reuse",
+    "signin_password_placeholder": "Please input access password",
+    "slogan": "Lightweight AI assistant based on deep content understanding",
+    "test": "Test",
+    "user_input_placeholder": "Send a message to AI",
+    "404": "Page Not Found"
+  },
+
+  "message": {
+    "empty_bot_message": "[Empty message]",
+    "error": "Error: {msg}",
+    "password_invalid": "Password not authenticated",
+    "success_copy": "Copy Success"
+  },
+
+  "tip": {
+    "chat_retrace": "The number of history messages to be recalled in each conversation, the greater the value, the more history messages will be recalled and the more tokens will be consumed. Generally, it is recommended to set it to 4 ~ 8.",
+    "chat_temperature": "The greater the value, the more varied the generated content will be. A value of 0 makes the generated content the most stable, and a value of 0.6 is recommended for general dialog."
+  },
+
+  "title": {
+    "signin": "Password authentication"
+  }
+}

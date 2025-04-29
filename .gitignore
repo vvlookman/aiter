@@ -1,0 +1,13 @@
+# Editor
+*.sublime-*
+.idea
+.vscode
+
+# OS
+.DS_Store
+
+# Generated files
+debug/
+target/
+**/*.rs.bk
+*.pdb

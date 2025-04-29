@@ -1,0 +1,52 @@
+{
+  "name": "aiter-web",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@microsoft/fetch-event-source": "2.0.1",
+    "@vscode/markdown-it-katex": "1.1.1",
+    "axios": "1.8.1",
+    "element-plus": "2.9.5",
+    "form-data": "4.0.2",
+    "js-sha256": "0.11.0",
+    "markdown-it": "14.1.0",
+    "papaparse": "5.5.2",
+    "pinia": "3.0.1",
+    "remixicon": "4.6.0",
+    "ulid": "2.3.0",
+    "vue": "3.5.13",
+    "vue-i18n": "10.0.5",
+    "vue-router": "4.5.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@intlify/unplugin-vue-i18n": "^6.0.3",
+    "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+    "@unocss/reset": "^66.0.0",
+    "@unocss/transformer-directives": "^66.0.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "eslint": "^9.20.1",
+    "eslint-plugin-vue": "^9.32.0",
+    "prettier": "^3.5.3",
+    "prettier-plugin-organize-attributes": "^1.0.0",
+    "prettier-plugin-sort-imports": "^1.8.7",
+    "prettier-plugin-tailwindcss": "^0.6.11",
+    "sass": "^1.85.1",
+    "unocss": "^66.0.0",
+    "unplugin-auto-import": "^19.1.1",
+    "unplugin-vue-components": "^28.4.1",
+    "vite": "^6.1.0",
+    "vite-plugin-vue-devtools": "^7.7.2"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "label": {
+    "about": "关于",
+    "ai_need_screening": "内容由 AI 协助生成，请您仔细甄别",
+    "back_to_home": "回到首页",
+    "chat_clear": "清除对话",
+    "chat_deep_off": "普通模式",
+    "chat_deep_on": "深度思考",
+    "chat_freely_off": "限制发挥",
+    "chat_freely_on": "自由发挥",
+    "chat_interrupt": "停止输出",
+    "chat_llm": "对话模型",
+    "chat_no_message_placeholder": "你好！我是{who}。请向我发送消息吧。",
+    "chat_retrace": "回顾消息数量",
+    "chat_temperature": "对话温度",
+    "chat_user_input_placeholder": "向 AI 发送消息",
+    "cancel": "取消",
+    "close": "关闭",
+    "confirm": "确认",
+    "copy": "复制",
+    "default_ai": "默认 AI",
+    "default_llm": "系统默认模型",
+    "reasoning_llm": "推理模型",
+    "reuse": "重用",
+    "signin_password_placeholder": "请输入访问密码",
+    "slogan": "深度理解内容的轻量级 AI 助手",
+    "test": "测试",
+    "user_input_placeholder": "向 AI 发送消息",
+    "404": "找不到页面"
+  },
+
+  "message": {
+    "empty_bot_message": "[消息为空]",
+    "error": "错误: {msg}",
+    "password_invalid": "密码未通过验证",
+    "success_copy": "复制成功"
+  },
+
+  "tip": {
+    "chat_retrace": "每次进行对话时回顾的历史消息数量，值越大回顾的历史消息越多，同时消耗的 token 越多。一般建议设置为 4 ~ 8 左右。",
+    "chat_temperature": "生成内容的多样性，值越大生成的内容越有变化。设为 0 让生成内容最稳定，一般对话建议设置为 0.6 左右。"
+  },
+
+  "title": {
+    "signin": "密码认证"
+  }
+}

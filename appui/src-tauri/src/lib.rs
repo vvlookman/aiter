@@ -1,0 +1,200 @@
+use std::sync::{Arc, LazyLock};
+
+use aiter::{api, error::AiterResult, CHANNEL_BUFFER_DEFAULT};
+use dashmap::DashMap;
+use serde::{Deserialize, Serialize};
+use tauri::async_runtime;
+use tokio::sync::{mpsc, Semaphore};
+
+use crate::api::{learn::DigestOptions, mem::MemWriteEvent};
+
+mod commands;
+
+static MEM_WRITE_EVENT_SENDERS: LazyLock<DashMap<String, mpsc::Sender<MemWriteEvent>>> =
+    LazyLock::new(DashMap::new);
+
+struct AppState {
+    app_config: AppConfig,
+    chat_event_senders: DashMap<String, mpsc::Sender<api::llm::ChatEvent>>,
+    notify_digest_event_sender: Option<mpsc::Sender<NotifyDigestEvent>>,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct AppConfig {
+    digest_batch: usize,
+    digest_concurrent: usize,
+    digest_deep: bool,
+    skip_digest: bool,
+}
+
+#[derive(Debug)]
+struct NotifyDigestEvent {
+    ai: Option<String>,
+    doc_id: String,
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub async fn run() {
+    aiter::init().await;
+
+    let app_config = AppConfig {
+        digest_batch: api::config::get("AppDigestBatch")
+            .await
+            .unwrap_or(None)
+            .map(|s| s.parse().unwrap_or(2))
+            .unwrap_or(2)
+            .max(1),
+        digest_concurrent: api::config::get("AppDigestConcurrent")
+            .await
+            .unwrap_or(None)
+            .map(|s| s.parse().unwrap_or(8))
+            .unwrap_or(8)
+            .max(1),
+        digest_deep: api::config::get("AppDigestDeep")
+            .await
+            .unwrap_or(None)
+            .map(|s| s.to_lowercase() == "true")
+            .unwrap_or(false),
+        skip_digest: api::config::get("AppSkipDigest")
+            .await
+            .unwrap_or(None)
+            .map(|s| s.to_lowercase() == "true")
+            .unwrap_or(false),
+    };
+
+    // Reset all terminated digesting tasks
+    let _ = reset_terminated_digesting_tasks().await;
+
+    let (notify_digest_event_sender, notify_digest_event_receiver) =
+        mpsc::channel::<NotifyDigestEvent>(CHANNEL_BUFFER_DEFAULT);
+
+    let app_state = AppState {
+        app_config,
+        chat_event_senders: DashMap::new(),
+        notify_digest_event_sender: Some(notify_digest_event_sender),
+    };
+
+    spawn_digest_queue(app_config.clone(), notify_digest_event_receiver);
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .manage(app_state)
+        .invoke_handler(tauri::generate_handler![
+            commands::app_config,
+            commands::core_version,
+            commands::is_npx_installed,
+            commands::is_uv_installed,
+            commands::ai::ai_add,
+            commands::ai::ai_delete,
+            commands::ai::ai_list,
+            commands::ai::ai_rename,
+            commands::chat::chat,
+            commands::chat::chat_abort,
+            commands::chat::chat_clear,
+            commands::chat::chat_delete,
+            commands::chat::chat_history,
+            commands::config::config_get,
+            commands::config::config_set,
+            commands::doc::doc_count_part,
+            commands::doc::doc_delete,
+            commands::doc::doc_get_part,
+            commands::doc::doc_learn,
+            commands::doc::doc_list,
+            commands::doc::doc_list_by_ids,
+            commands::doc::doc_list_digesting_ids,
+            commands::llm::llm_active,
+            commands::llm::llm_config,
+            commands::llm::llm_delete,
+            commands::llm::llm_edit,
+            commands::llm::llm_list,
+            commands::llm::llm_list_actived_names,
+            commands::llm::llm_test_chat,
+            commands::skill::skill_add,
+            commands::skill::skill_adds,
+            commands::skill::skill_delete,
+            commands::skill::skill_list,
+            commands::tool::tool_delete_by_toolset,
+            commands::tool::tool_get,
+            commands::tool::tool_import,
+            commands::tool::tool_list_by_ids,
+            commands::tool::tool_list_toolsets,
+            commands::tool::tool_parse,
+            commands::tool::tool_query_by_toolset,
+        ])
+        .run(tauri::generate_context!())
+        .expect("Running tauri application error!");
+}
+
+async fn get_mem_write_event_sender(ai: Option<&str>) -> AiterResult<mpsc::Sender<MemWriteEvent>> {
+    let ai_key = ai.unwrap_or_default();
+
+    if let Some(sender) = MEM_WRITE_EVENT_SENDERS.get(ai_key) {
+        Ok(sender.clone())
+    } else {
+        let sender = api::mem::spawn_mem_write(ai).await?;
+        MEM_WRITE_EVENT_SENDERS.insert(ai_key.to_string(), sender.clone());
+
+        Ok(sender)
+    }
+}
+
+async fn reset_terminated_digesting_tasks() -> AiterResult<()> {
+    for ai in api::ai::list().await? {
+        api::mem::doc::reset_not_digested_but_started(Some(&ai.name)).await?;
+    }
+    api::mem::doc::reset_not_digested_but_started(None).await?;
+
+    Ok(())
+}
+
+fn spawn_digest_queue(
+    app_config: AppConfig,
+    mut notify_digest_event_receiver: mpsc::Receiver<NotifyDigestEvent>,
+) {
+    let semaphore = Arc::new(Semaphore::new(app_config.digest_batch));
+
+    async_runtime::spawn(async move {
+        while let Some(event) = notify_digest_event_receiver.recv().await {
+            if app_config.skip_digest {
+                continue;
+            }
+
+            let ai_key = event.ai.clone().unwrap_or_default();
+            let mem_write_event_sender = if let Some(sender) = MEM_WRITE_EVENT_SENDERS.get(&ai_key)
+            {
+                sender.clone()
+            } else {
+                let sender = api::mem::spawn_mem_write(event.ai.as_deref())
+                    .await
+                    .expect("Spawn mem write error");
+                MEM_WRITE_EVENT_SENDERS.insert(ai_key.to_string(), sender.clone());
+
+                sender
+            };
+
+            if let Ok(permit) = semaphore.clone().acquire_owned().await {
+                let app_config = app_config.clone();
+                let mem_write_event_sender = mem_write_event_sender.clone();
+
+                async_runtime::spawn(async move {
+                    let options = DigestOptions::default()
+                        .with_concurrent(app_config.digest_concurrent)
+                        .with_deep(app_config.digest_deep);
+
+                    let _ = api::learn::digest_doc(
+                        event.ai.as_deref(),
+                        &event.doc_id,
+                        &options,
+                        mem_write_event_sender,
+                        None,
+                    )
+                    .await;
+
+                    drop(permit);
+                });
+            }
+        }
+    });
+}

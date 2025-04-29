@@ -1,0 +1,8 @@
+{
+  "plugins": ["prettier-plugin-organize-attributes", "prettier-plugin-sort-imports", "prettier-plugin-tailwindcss"],
+  "sortingMethod": "alphabetical",
+  "printWidth": 120,
+  "singleQuote": true,
+  "requirePragma": false,
+  "trailingComma": "all"
+}
