@@ -101,5 +101,5 @@ cargo build --release
 ```sh
 cd <project_root>
 version=$(sed -n 's/version = "\(.*\)"$/\1/p' Cargo.toml)
-docker build --no-cache -t aiter:${version} .
+docker build -t aiter:${version} .
 ```

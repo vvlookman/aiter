@@ -26,7 +26,7 @@ RUN echo \
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends build-essential clang libssl-dev llvm pkg-config
 COPY . ./
-COPY --from=webui-builder /dist ./dist/
+COPY --from=webui-builder /dist ./webui/dist/
 RUN cargo build --release
 
 
