@@ -166,7 +166,6 @@ pub async fn config(
         if let (Some(r#type), Some(protocol)) = (r#type, protocol) {
             db::core::llm::upsert(name, r#type, protocol, options).await?;
 
-            #[allow(clippy::single_match)]
             match r#type {
                 "chat" => {
                     if db::core::config::get(&db::core::config::ConfigKey::ActiveChatLlm)
@@ -175,6 +174,18 @@ pub async fn config(
                     {
                         db::core::config::set(&db::core::config::ConfigKey::ActiveChatLlm, name)
                             .await?;
+                    }
+                }
+                "reasoning" => {
+                    if db::core::config::get(&db::core::config::ConfigKey::ActiveReasoningLlm)
+                        .await?
+                        .is_none()
+                    {
+                        db::core::config::set(
+                            &db::core::config::ConfigKey::ActiveReasoningLlm,
+                            name,
+                        )
+                        .await?;
                     }
                 }
                 _ => (),
