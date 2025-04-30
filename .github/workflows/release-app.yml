@@ -1,0 +1,55 @@
+name: Release App
+
+on:
+  push:
+    branches: ["release"]
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest"
+            target: "aarch64-apple-darwin"
+            args: "--target aarch64-apple-darwin"
+          - platform: "macos-latest"
+            target: "x86_64-apple-darwin"
+            args: "--target x86_64-apple-darwin"
+          - platform: "windows-latest"
+            target: "x86_64-pc-windows-msvc"
+          - platform: "windows-latest"
+            target: "aarch64-pc-windows-msvc"
+            args: "--target aarch64-pc-windows-msvc"
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.11.0"
+
+      - run: npm install
+        working-directory: ./webui
+
+      - run: npm run build
+        working-directory: ./webui
+
+      - run: npm install
+        working-directory: ./appui
+
+      - run: rustup override set 1.86.0
+      - run: rustup target add ${{ matrix.target }}
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: ./appui
+          tagName: v__VERSION__
+          releaseName: __VERSION__
+          releaseDraft: true
+          args: ${{ matrix.args }}

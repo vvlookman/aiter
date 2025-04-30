@@ -2,7 +2,7 @@
 
 [![Rust](https://github.com/vvlookman/aiter/actions/workflows/build.yml/badge.svg)](https://github.com/vvlookman/aiter/actions/workflows/build.yml)
 
-[English](README.md) 中文
+[English](README.md) &nbsp; 中文
 
 深度理解内容的轻量级 AI 助手
 
@@ -10,11 +10,23 @@
 
 ### 使用 App
 
-直接下载 App 并运行
+[下载](https://github.com/vvlookman/aiter/releases) App 并运行
+
+> **注意** 因为当前自动编译的安装包没有签名，因此 macOS 用户安装后需要手动执行 `xattr -d com.apple.quarantine -r /Applications/Aiter.app`，否则会提示文件已损坏。
+
+### 通过 Docker 运行 Web 服务
+
+**注意** 通过 Web 服务只能访问部分功能，完整功能可通过 App 或命令行使用。还可以通过 App 中的「远程」功能连接 Web 服务。
+
+```sh
+docker run -name aiter -itd -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 vvlookman/aiter
+```
 
 ### 使用命令行
 
-以默认 AI 助手为例：
+使用命令行最简便的途径是通过 `docker exec -it aiter bash` 命令进入到 Docker 容器中，然后运行 `aiter` 命令。
+
+下面以默认 AI 助手为例：
 
 ```sh
 # 接入 LLM 服务
@@ -39,20 +51,6 @@ aiter ai new <ai_name>
 aiter read <path_to_doc_or_dir> @<ai_name>
 aiter digest --batch 16 --concurrent 8 @<ai_name>
 aiter chat <question> @<ai_name>
-```
-
-### 运行 Web 服务
-
-```sh
-aiter serve
-```
-
-服务默认运行在 http://localhost:6868 ，**注意** 通过 Web 服务只能访问部分功能，完整功能可通过 App 或命令行使用。
-
-### 通过 Docker 运行 Web 服务
-
-```sh
-docker run -itd --rm -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 vvlookman/aiter
 ```
 
 ## 开发
@@ -86,7 +84,7 @@ npm run tauri build
 ### 编译命令行
 
 ```sh
-# 编译 Web 界面，编译结果会打包到命令行程序中
+# 先编译 Web 界面，编译结果会打包到命令行程序中
 cd <project_root>/webui
 npm install
 npm run build
