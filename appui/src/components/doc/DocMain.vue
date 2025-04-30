@@ -6,6 +6,7 @@ import ViewDocDialog from '@/components/doc/ViewDocDialog.vue';
 import { useAiStore } from '@/stores/ai';
 import { useDocStore } from '@/stores/doc';
 import { fileMd5 } from '@/utils/fs';
+import { ElMessage } from 'element-plus';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -25,7 +26,7 @@ const state = reactive({
   requestingFetchDocs: false,
   hasMoreDocs: false,
 
-  addingLearnQueue: false,
+  addingToLearnQueue: false,
   showLearnQueueDialog: false,
 
   docSelected: null,
@@ -114,22 +115,22 @@ const onScroll = async () => {
 };
 
 const onSelectFile = async (e) => {
-  state.addingLearnQueue = true;
+  state.addingToLearnQueue = true;
 
-  try {
-    for (const file of e.target.files) {
-      const hash = await fileMd5(file);
-      if (docStore.existsInLearnQueue(aiStore.getActiveName(), hash)) {
-        throw new Error(t('message.doc_in_queue', { name: file.name }));
-      } else {
-        docStore.addToLearnQueue(aiStore.getActiveName(), hash, file);
-      }
+  for (const file of e.target.files) {
+    const hash = await fileMd5(file);
+    if (docStore.existsInLearnQueue(aiStore.getActiveName(), hash)) {
+      ElMessage({
+        type: 'info',
+        message: t('message.doc_in_queue', { name: file.name }),
+      });
+    } else {
+      docStore.addToLearnQueue(aiStore.getActiveName(), hash, file);
     }
-  } finally {
-    state.addingLearnQueue = false;
   }
 
   refInputFile.value.value = '';
+  state.addingToLearnQueue = false;
 
   await processLearnQueue();
 };
@@ -140,20 +141,47 @@ const onViewDoc = (doc) => {
 };
 
 const processLearnQueue = async () => {
-  const queue = docStore.getLearnQueue(aiStore.getActiveName());
-  while (queue.length > 0) {
-    const file = queue[0].file;
+  const aiName = aiStore.getActiveName();
+
+  if (docStore.isProcessingLearnQueue(aiName)) {
+    return;
+  }
+
+  docStore.setProcessingLearnQueue(aiName, true);
+
+  const queue = docStore.getLearnQueue(aiName);
+  while (true) {
+    const task = queue.find((task) => !task.processing);
+    if (!task) {
+      break;
+    }
+
+    task.processing = true;
+
+    const { hash, file } = task;
 
     try {
-      let result = await callDocLearn(aiStore.getActiveName(), file);
-      if (result[1]) {
-        throw new Error(t('message.doc_exists'));
+      const result = await callDocLearn(aiName, file);
+      if (result.doc_exists) {
+        ElMessage({
+          type: 'info',
+          message: t('message.doc_exists', { name: file.name }),
+        });
+      } else {
+        state.docs.unshift(result.doc);
+
+        clearTimeout(fetchDigestingIdsTimer);
+        fetchDigestingIdsTimer = setTimeout(fetchDigestingIds, 1000);
       }
     } finally {
-      docStore.shiftFromLearnQueue(aiStore.getActiveName());
-      await refreshDocs();
+      docStore.deleteFromLearnQueue(aiName, hash);
+      if (!queue.length) {
+        state.showLearnQueueDialog = false;
+      }
     }
   }
+
+  docStore.setProcessingLearnQueue(aiName, false);
 };
 
 let fetchDigestingIdsTimer;
@@ -228,8 +256,8 @@ onUnmounted(() => {
           type="file"
           multiple
         />
-        <el-button :disabled="state.addingLearnQueue" @click="refInputFile.click()" type="primary">
-          <template v-if="state.addingLearnQueue">
+        <el-button :disabled="state.addingToLearnQueue" @click="refInputFile.click()" type="primary">
+          <template v-if="state.addingToLearnQueue">
             <el-icon class="rotating"><i class="ri-loader-4-line"></i></el-icon>
           </template>
           <template v-else>

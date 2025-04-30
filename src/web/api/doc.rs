@@ -97,7 +97,7 @@ pub async fn learn(
     // Notify to digest, it will be put into the digest queue
     if !read_result.doc_exists {
         let event = NotifyDigestEvent {
-            ai,
+            ai: ai.clone(),
             doc_id: read_result.doc_id.clone(),
         };
 
@@ -106,10 +106,14 @@ pub async fn learn(
         }
     }
 
-    Ok(Json(json!({
-        "doc_id": read_result.doc_id,
-        "doc_exists": read_result.doc_exists,
-    })))
+    if let Some(doc) = api::mem::doc::get(ai.as_deref(), &read_result.doc_id).await? {
+        Ok(Json(json!({
+            "doc": doc,
+            "doc_exists": read_result.doc_exists,
+        })))
+    } else {
+        Err(AiterError::NotExists(format!("Doc '{}' not exists", read_result.doc_id)).into())
+    }
 }
 
 #[derive(Deserialize, Debug)]

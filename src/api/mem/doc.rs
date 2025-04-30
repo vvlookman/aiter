@@ -51,6 +51,12 @@ pub async fn delete(
     Ok(doc)
 }
 
+pub async fn get(ai_name: Option<&str>, doc_id: &str) -> AiterResult<Option<DocEntity>> {
+    let mem_path = get_mem_path(ai_name).await?;
+
+    db::mem::doc::get(&mem_path, doc_id).await
+}
+
 pub async fn get_part_as_text(
     ai_name: Option<&str>,
     doc_id: &str,

@@ -76,7 +76,7 @@
   },
 
   "message": {
-    "doc_exists": "相同内容的文档已存在",
+    "doc_exists": "已存在内容与 '{name}' 相同的文档",
     "doc_in_queue": "文档 '{name}' 已在队列中",
     "empty_bot_message": "[消息为空]",
     "error": "错误: {error}",

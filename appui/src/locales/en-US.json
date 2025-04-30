@@ -76,7 +76,7 @@
   },
 
   "message": {
-    "doc_exists": "Document with the same content already exists",
+    "doc_exists": "Document exists with the same content as '{name}'",
     "doc_in_queue": "Document '{name}' is already in the processing queue",
     "empty_bot_message": "[Empty message]",
     "error": "Error: {error}",

@@ -4,6 +4,7 @@ use aiter::{
     api,
     error::{AiterError, AiterResult},
 };
+use serde::Serialize;
 use ulid::Ulid;
 
 use crate::{get_mem_write_event_sender, AppState, NotifyDigestEvent};
@@ -28,13 +29,19 @@ pub async fn doc_get_part(ai: Option<&str>, id: &str, index: u64) -> AiterResult
     api::mem::doc::get_part_as_text(ai, id, index).await
 }
 
+#[derive(Clone, Serialize)]
+pub struct DocLearnResult {
+    pub doc: api::mem::doc::DocEntity,
+    pub doc_exists: bool,
+}
+
 #[tauri::command]
 pub async fn doc_learn(
     ai: Option<&str>,
     file_data: Vec<u8>,
     file_name: &str,
     state: tauri::State<'_, AppState>,
-) -> AiterResult<(String, bool)> {
+) -> AiterResult<DocLearnResult> {
     // Write to temp file
     let file_path = PathBuf::from(env::temp_dir().join(format!("aiter-{}", Ulid::new())));
     fs::write(&file_path, &file_data)?;
@@ -68,7 +75,17 @@ pub async fn doc_learn(
         }
     }
 
-    Ok((read_result.doc_id, read_result.doc_exists))
+    if let Some(doc) = api::mem::doc::get(ai, &read_result.doc_id).await? {
+        Ok(DocLearnResult {
+            doc,
+            doc_exists: read_result.doc_exists,
+        })
+    } else {
+        Err(AiterError::NotExists(format!(
+            "Doc '{}' not exists",
+            read_result.doc_id
+        )))
+    }
 }
 
 #[tauri::command]
