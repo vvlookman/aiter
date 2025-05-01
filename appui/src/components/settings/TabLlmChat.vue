@@ -289,7 +289,7 @@ watch(
                           state.currentShowTestContent = false;
                         }
                       "
-                      :disabled="!currentLlm.apiKey || state.currentIsTesting"
+                      :disabled="state.currentIsTesting"
                       @click="onTest"
                     >
                       <template v-if="state.currentIsTesting">
