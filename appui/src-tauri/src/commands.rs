@@ -9,6 +9,7 @@ pub mod chat;
 pub mod config;
 pub mod doc;
 pub mod llm;
+pub mod mem;
 pub mod skill;
 pub mod tool;
 

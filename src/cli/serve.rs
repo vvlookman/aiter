@@ -201,6 +201,11 @@ impl ServeCommand {
                                 .service(web::api::llm::test_chat),
                         )
                         .service(
+                            scope("/mem")
+                                .service(web::api::mem::stats)
+                                .service(web::api::mem::vacuum),
+                        )
+                        .service(
                             scope("/skill")
                                 .service(web::api::skill::add)
                                 .service(web::api::skill::adds)

@@ -111,6 +111,8 @@ pub async fn run() {
             commands::llm::llm_list,
             commands::llm::llm_list_actived_names,
             commands::llm::llm_test_chat,
+            commands::mem::mem_stats,
+            commands::mem::mem_vacuum,
             commands::skill::skill_add,
             commands::skill::skill_adds,
             commands::skill::skill_delete,

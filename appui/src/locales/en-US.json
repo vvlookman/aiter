@@ -18,6 +18,7 @@
     "close": "Close",
     "confirm": "Yes",
     "confirm_delete": "Are you sure you want to delete '{name}'?",
+    "confirm_vacuum": "Are you sure you want to vacuum? There may be a long wait and the data will be temporarily unavailable.",
     "copy": "Copy",
     "core_version": "Core version",
     "default_ai": "Default AI",
@@ -72,6 +73,7 @@
     "test_access_and_save": "Test Access & Save",
     "tool_ahp_headers": "HTTP Headers",
     "tool_ahp_url_placeholder": "Please enter URL",
+    "vacuuming": "Vacuuming...",
     "warning": "Warning"
   },
 

@@ -366,6 +366,30 @@ export async function callLlmTestChat(prompt, name, protocol, options, timeoutSe
   }
 }
 
+export async function callMemStats(ai) {
+  if (baseUrl) {
+    return await api.post('/mem/stats', {
+      ai,
+    });
+  } else {
+    return await invoke('mem_stats', {
+      ai,
+    });
+  }
+}
+
+export async function callMemVacuum(ai) {
+  if (baseUrl) {
+    return await api.post('/mem/vacuum', {
+      ai,
+    });
+  } else {
+    return await invoke('mem_vacuum', {
+      ai,
+    });
+  }
+}
+
 export async function callSkillAdd(ai, toolId, trigger) {
   if (baseUrl) {
     return await api.post('/skill/add', {

@@ -1,17 +1,18 @@
-import { callAiList } from '@/call';
+import { callAiList, callMemStats } from '@/call';
 import { defineStore } from 'pinia';
 
 export const useAiStore = defineStore('ai', {
   state: () => ({
     items: [],
+    memStats: {},
 
-    activeId: null,
+    activeId: undefined,
   }),
 
   actions: {
     active(id) {
       if (!id) {
-        this.activeId = null;
+        this.activeId = undefined;
       } else {
         const index = this.items.findIndex((item) => item.id === id);
         if (index > -1) {
@@ -26,13 +27,18 @@ export const useAiStore = defineStore('ai', {
         this.items.splice(index, 1);
 
         if (this.activeId === ai.id) {
-          this.activeId = null;
+          this.activeId = undefined;
         }
       }
     },
 
     async fetch() {
       this.items = await callAiList();
+    },
+
+    async fetchMemStats() {
+      const ai = this.items.find((item) => item.id === this.activeId);
+      this.memStats[ai?.id] = await callMemStats(ai?.name);
     },
 
     upsert(ai) {
@@ -47,7 +53,11 @@ export const useAiStore = defineStore('ai', {
 
   getters: {
     getActiveName(state) {
-      return () => state.items.find((item) => item.id === this.activeId)?.name;
+      return () => state.items.find((item) => item.id === state.activeId)?.name;
+    },
+
+    getActiveMemStats(state) {
+      return () => state.memStats[state.activeId] ?? {};
     },
   },
 });

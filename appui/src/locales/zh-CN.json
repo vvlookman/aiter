@@ -17,7 +17,8 @@
     "cancel": "取消",
     "close": "关闭",
     "confirm": "确认",
-    "confirm_delete": "确认要删除 '{name}' 吗?",
+    "confirm_delete": "确认要删除 '{name}' 吗？",
+    "confirm_vacuum": "确认要执行整理吗？可能需要等待较长时间，且数据将暂时无法使用",
     "copy": "复制",
     "core_version": "内核版本",
     "default_ai": "默认 AI",
@@ -72,6 +73,7 @@
     "test_access_and_save": "测试连接并保存",
     "tool_ahp_headers": "HTTP 请求头",
     "tool_ahp_url_placeholder": "请输入服务的 URL",
+    "vacuuming": "正在整理...",
     "warning": "警告"
   },
 

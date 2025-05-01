@@ -6,6 +6,7 @@ pub mod ai;
 pub mod chat;
 pub mod doc;
 pub mod llm;
+pub mod mem;
 pub mod skill;
 pub mod tool;
 
