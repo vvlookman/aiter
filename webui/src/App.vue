@@ -13,7 +13,7 @@ onErrorCaptured((err) => {
     {
       type: err.code ? 'error' : 'warning',
       duration: 3000,
-      message: err.code ? `${err.code}: ${err.message}` : err.message,
+      message: err.code ? `${err.code}: ${err.message}` : err.message ? err.message : err,
     },
     appContext,
   );
