@@ -54,11 +54,11 @@ pub async fn chat_completion(
         }) = get_by_name(&name).await?
         {
             if protocol == "openai" {
-                if let (Some(base_url), Some(api_key), Some(model)) = (
-                    options.get("base_url"),
-                    options.get("api_key"),
-                    options.get("model"),
-                ) {
+                if let (Some(base_url), Some(model)) =
+                    (options.get("base_url"), options.get("model"))
+                {
+                    let api_key = options.get("api_key").map_or("", |v| v);
+
                     let mut messages = history.to_vec();
                     messages.push(ChatMessage {
                         role: Role::User,
@@ -70,7 +70,7 @@ pub async fn chat_completion(
                         .chat_completion(&messages, chat_completion_options, event_sender)
                         .await;
                 } else {
-                    for k in ["base_url", "api_key", "model"] {
+                    for k in ["base_url", "model"] {
                         if !options.contains_key(k) {
                             return Err(AiterError::Invalid(format!(
                                 "Missing required option {}",
@@ -104,11 +104,11 @@ pub async fn chat_function_calls(
         }) = get_by_name(&name).await?
         {
             if protocol == "openai" {
-                if let (Some(base_url), Some(api_key), Some(model)) = (
-                    options.get("base_url"),
-                    options.get("api_key"),
-                    options.get("model"),
-                ) {
+                if let (Some(base_url), Some(model)) =
+                    (options.get("base_url"), options.get("model"))
+                {
+                    let api_key = options.get("api_key").map_or("", |v| v);
+
                     let mut messages = history.to_vec();
                     messages.push(ChatMessage {
                         role: Role::User,
@@ -120,7 +120,7 @@ pub async fn chat_function_calls(
                         .chat_function_calls(&messages, functions)
                         .await;
                 } else {
-                    for k in ["base_url", "api_key", "model"] {
+                    for k in ["base_url", "model"] {
                         if !options.contains_key(k) {
                             return Err(AiterError::Invalid(format!(
                                 "Missing required option {}",
@@ -281,11 +281,9 @@ pub async fn test_chat(
     event_sender: Option<Sender<ChatEvent>>,
 ) -> AiterResult<String> {
     if protocol == "openai" {
-        if let (Some(base_url), Some(api_key), Some(model)) = (
-            options.get("base_url"),
-            options.get("api_key"),
-            options.get("model"),
-        ) {
+        if let (Some(base_url), Some(model)) = (options.get("base_url"), options.get("model")) {
+            let api_key = options.get("api_key").map_or("", |v| v);
+
             // If api_key is all *, means it is masked, so read from database
             let mut api_key_unmask = api_key.to_string();
             if api_key.trim().trim_matches('*').is_empty() {
@@ -307,7 +305,7 @@ pub async fn test_chat(
                 .await
                 .map(|message| message.content);
         } else {
-            for k in ["base_url", "api_key", "model"] {
+            for k in ["base_url", "model"] {
                 if !options.contains_key(k) {
                     return Err(AiterError::Invalid(format!(
                         "Missing required option {}",

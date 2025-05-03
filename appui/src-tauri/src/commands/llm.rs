@@ -5,10 +5,7 @@ use aiter::{
     error::{AiterError, AiterResult},
     CHANNEL_BUFFER_DEFAULT,
 };
-use tokio::{
-    sync::mpsc,
-    time::{timeout, Duration},
-};
+use tokio::sync::mpsc;
 use ulid::Ulid;
 
 use crate::AppState;
@@ -93,7 +90,6 @@ pub async fn llm_test_chat(
     name: &str,
     protocol: &str,
     options: HashMap<String, String>,
-    timeout_secs: u64,
     channel: tauri::ipc::Channel<String>,
     state: tauri::State<'_, AppState>,
 ) -> AiterResult<()> {
@@ -144,19 +140,16 @@ pub async fn llm_test_chat(
         api::llm::test_chat(&prompt, &name, &protocol, &options, Some(event_sender)).await
     });
 
-    let result = match timeout(Duration::from_secs(timeout_secs), handle).await {
-        Ok(result) => match result {
-            Ok(Ok(_)) => Ok(()),
-            Ok(Err(err)) => {
-                if let AiterError::Interrupted(_) = err {
-                    Ok(())
-                } else {
-                    Err(err)
-                }
+    let result = match handle.await {
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(err)) => {
+            if let AiterError::Interrupted(_) = err {
+                Ok(())
+            } else {
+                Err(err)
             }
-            Err(err) => Err(err.into()),
-        },
-        Err(_) => Err(AiterError::Timeout),
+        }
+        Err(err) => Err(err.into()),
     };
 
     state.chat_event_senders.remove(&exchange);

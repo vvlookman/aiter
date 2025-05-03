@@ -341,7 +341,7 @@ export async function callLlmListActivedNames() {
   }
 }
 
-export async function callLlmTestChat(prompt, name, protocol, options, timeoutSecs, hooks) {
+export async function callLlmTestChat(prompt, name, protocol, options, hooks) {
   if (baseUrl) {
     return await api.sse(
       '/llm/test-chat',
@@ -350,7 +350,6 @@ export async function callLlmTestChat(prompt, name, protocol, options, timeoutSe
         name,
         protocol,
         options,
-        timeout_secs: timeoutSecs,
       },
       hooks,
     );
@@ -360,7 +359,6 @@ export async function callLlmTestChat(prompt, name, protocol, options, timeoutSe
       name,
       protocol,
       options,
-      timeoutSecs,
       channel: hooks.channel,
     });
   }

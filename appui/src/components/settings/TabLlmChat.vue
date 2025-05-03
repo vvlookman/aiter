@@ -20,6 +20,7 @@ const state = reactive({
   currentName: '',
   currentIsSaving: false,
   currentIsTesting: false,
+  currentIsTestingName: null,
   currentShowTestContent: false,
   currentTestContent: '',
 });
@@ -111,6 +112,7 @@ const onTest = async () => {
   state.currentIsTesting = true;
 
   try {
+    state.currentIsTestingName = state.currentName;
     state.currentTestContent = '';
     state.currentShowTestContent = true;
 
@@ -120,6 +122,11 @@ const onTest = async () => {
         let { data } = event;
 
         if (data === '[DONE]') {
+          return;
+        }
+
+        if (state.currentIsTestingName !== state.currentName) {
+          state.currentShowTestContent = false;
           return;
         }
 
@@ -136,6 +143,11 @@ const onTest = async () => {
     } else {
       const channel = new Channel();
       channel.onmessage = (data) => {
+        if (state.currentIsTestingName !== state.currentName) {
+          state.currentShowTestContent = false;
+          return;
+        }
+
         if (data.trim().length > 0) {
           state.currentShowTestContent = true;
         }
@@ -156,7 +168,7 @@ const onTest = async () => {
       model: currentLlm.model,
     };
 
-    await callLlmTestChat(t('message.who_are_you'), name, protocol, options, 10, hooks);
+    await callLlmTestChat(t('message.who_are_you'), name, protocol, options, hooks);
   } finally {
     state.currentIsTesting = false;
   }
