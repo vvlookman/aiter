@@ -102,6 +102,7 @@
   "vendor": {
     "anthropic": "Anthropic",
     "deepseek": "DeepSeek",
+    "ollama": "Ollama",
     "openai-compatible": "OpenAI-Compatible",
     "qwen": "Qwen"
   }

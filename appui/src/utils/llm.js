@@ -27,6 +27,12 @@ const chatLlms = [
       'qwen-long-latest',
     ],
   },
+  {
+    name: 'ollama',
+    protocol: 'openai',
+    baseUrl: 'http://localhost:11434/v1',
+    models: [],
+  },
 ];
 
 const reasoningLlms = [
@@ -48,6 +54,12 @@ const reasoningLlms = [
     apiKeyUrl: 'https://bailian.console.aliyun.com/?apiKey=1',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     models: ['qwq-32b', 'qwq-plus', 'qwq-plus-latest'],
+  },
+  {
+    name: 'ollama',
+    protocol: 'openai',
+    baseUrl: 'http://localhost:11434/v1',
+    models: [],
   },
 ];
 
