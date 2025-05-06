@@ -21,7 +21,7 @@ const state = reactive({
 
 const markdownContent = computed(() => renderMarkdown(removeThinkBlock(props.message.content)));
 const markdownReasoning = computed(() =>
-  renderMarkdown(props.message.reasoning + extractThinkBlock(props.message.content)),
+  renderMarkdown(props.message.reasoning ?? '' + extractThinkBlock(props.message.content)),
 );
 
 const onCopy = async () => {

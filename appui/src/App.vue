@@ -6,6 +6,7 @@ import SettingsMain from '@/components/settings/SettingsMain.vue';
 import SkillMain from '@/components/skill/SkillMain.vue';
 import { useAiStore } from '@/stores/ai';
 import { useAppStore } from '@/stores/app';
+import { useChatStore } from '@/stores/chat';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ElMessage } from 'element-plus';
 import { getCurrentInstance, onErrorCaptured, onMounted, reactive, watch } from 'vue';
@@ -14,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 const { locale, t } = useI18n();
 const aiStore = useAiStore();
 const appStore = useAppStore();
+const chatStore = useChatStore();
 const { appContext } = getCurrentInstance();
 
 const state = reactive({
@@ -101,7 +103,14 @@ watch(
         @select="onMenuSelected"
       >
         <el-menu-item class="rounded-md" index="chat">
-          <el-icon><i class="ri-chat-smile-ai-line"></i></el-icon>
+          <el-icon>
+            <template v-if="chatStore.isNoticed(aiStore.getActiveName())">
+              <el-badge is-dot><i class="ri-chat-smile-ai-line"></i></el-badge>
+            </template>
+            <template v-else>
+              <i class="ri-chat-smile-ai-line"></i>
+            </template>
+          </el-icon>
           <template #title>{{ $t('label.chat') }}</template>
         </el-menu-item>
         <el-menu-item class="rounded-md" index="doc">

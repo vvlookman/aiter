@@ -5,6 +5,7 @@ import ChatSidebar from '@/components/chat/ChatSidebar.vue';
 import UserInput from '@/components/chat/UserInput.vue';
 import UserMessage from '@/components/chat/UserMessage.vue';
 import { useAiStore } from '@/stores/ai';
+import { useAppStore } from '@/stores/app';
 import { useChatStore } from '@/stores/chat';
 import { useLlmStore } from '@/stores/llm';
 import { Channel } from '@tauri-apps/api/core';
@@ -14,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 const visible = defineModel('visible');
 const aiStore = useAiStore();
+const appStore = useAppStore();
 const chatStore = useChatStore();
 const llmStore = useLlmStore();
 const { t } = useI18n();
@@ -211,6 +213,10 @@ const onSend = async (e) => {
       },
       hooks,
     );
+
+    if (appStore.mainMenu !== 'chat') {
+      chatStore.setNoticed(aiStore.getActiveName(), true);
+    }
   } catch (err) {
     const currentMessage = state.messages[state.messages.length - 1];
     if (currentMessage && currentMessage.exchange == state.exchange) {
@@ -274,10 +280,23 @@ watch(
   },
 );
 
+watch(
+  () => appStore.mainMenu,
+  async (val) => {
+    if (val === 'chat') {
+      chatStore.setNoticed(aiStore.getActiveName(), false);
+    }
+  },
+);
+
 onMounted(async () => {
   const sessionKey = `aiter-session-${aiStore.getActiveName() ?? '~'}`;
   state.session = localStorage.getItem(sessionKey) ?? ulid();
   localStorage.setItem(sessionKey, state.session);
+
+  if (appStore.mainMenu === 'chat') {
+    chatStore.setNoticed(aiStore.getActiveName(), false);
+  }
 
   await fetchMessages();
 });
