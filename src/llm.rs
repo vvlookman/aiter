@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use crate::chat::ChatCallToolTask;
+use crate::{chat::ChatCallToolTask, LLM_CHAT_TEMPERATURE_DEFAULT};
 
 pub mod prompt;
 pub mod provider;
 
 pub struct ChatCompletionOptions {
+    pub enable_think: bool, // Some multi-mode-models can switch between think/nothink mode, such as qwen3
     pub temperature: f64,
 }
 
@@ -56,4 +57,25 @@ pub enum Role {
     System,
     Func,
     Tool,
+}
+
+impl Default for ChatCompletionOptions {
+    fn default() -> Self {
+        Self {
+            enable_think: false,
+            temperature: LLM_CHAT_TEMPERATURE_DEFAULT,
+        }
+    }
+}
+
+impl ChatCompletionOptions {
+    pub fn with_enable_think(mut self, enable_think: bool) -> Self {
+        self.enable_think = enable_think;
+        self
+    }
+
+    pub fn with_temperature(mut self, temperature: f64) -> Self {
+        self.temperature = temperature;
+        self
+    }
 }

@@ -7,7 +7,6 @@ use crate::{
     error::*,
     llm,
     llm::provider::{open_ai::OpenAiProvider, *},
-    LLM_CHAT_TEMPERATURE_DEFAULT,
 };
 
 pub static SUPPORTED_TYPES: &[&str] = &["chat", "reasoning"];
@@ -322,19 +321,4 @@ pub async fn test_chat(
     }
 
     Err(AiterError::Invalid("No Chat LLM".to_string()))
-}
-
-impl Default for ChatCompletionOptions {
-    fn default() -> Self {
-        Self {
-            temperature: LLM_CHAT_TEMPERATURE_DEFAULT,
-        }
-    }
-}
-
-impl ChatCompletionOptions {
-    pub fn with_temperature(mut self, temperature: f64) -> Self {
-        self.temperature = temperature;
-        self
-    }
 }

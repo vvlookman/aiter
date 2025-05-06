@@ -1,5 +1,6 @@
 <script setup>
 import { renderMarkdown } from '@/utils/markdown';
+import { extractThinkBlock, removeThinkBlock } from '@/utils/text';
 import { ElMessage } from 'element-plus';
 import { computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -18,14 +19,9 @@ const state = reactive({
   showTools: false,
 });
 
-const markdownContent = computed(() => renderMarkdown(props.message.content));
+const markdownContent = computed(() => renderMarkdown(removeThinkBlock(props.message.content)));
 const markdownReasoning = computed(() =>
-  renderMarkdown(
-    props.message.reasoning
-      .trim()
-      .replace(/^<think>/i, '')
-      .replace(/<\/think>$/i, ''),
-  ),
+  renderMarkdown(extractThinkBlock(props.message.reasoning) + extractThinkBlock(props.message.content)),
 );
 
 const onCopy = async () => {
@@ -94,11 +90,11 @@ const tooltipCallTool = (call_tool) => {
 
           <div
             class="message-content mb-2 break-all border-0 border-l-2 border-solid border-gray-200 pl-2 text-gray-400"
-            v-if="message.reasoning"
+            v-if="markdownReasoning"
             v-html="markdownReasoning"
           ></div>
 
-          <div class="message-content break-all" v-if="message.content" v-html="markdownContent"></div>
+          <div class="message-content break-all" v-if="markdownContent" v-html="markdownContent"></div>
         </template>
 
         <div class="mt-1 flex" :style="{ opacity: state.showTools && !receiving && message.content ? 1 : 0 }">

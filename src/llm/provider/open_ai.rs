@@ -36,9 +36,26 @@ impl ChatProvider for OpenAiProvider {
     ) -> AiterResult<ChatMessage> {
         let request_url = join_url(&self.base_url, "/chat/completions")?;
 
+        let mut messages_json_value = messages
+            .iter()
+            .map(chat_message_to_json_value)
+            .collect::<Vec<_>>();
+        if self.model.starts_with("qwen3") && !messages.is_empty() {
+            if let Some(content) = messages_json_value[messages.len() - 1].get_mut("content") {
+                if let Some(content_str) = content.as_str() {
+                    let instruction = if options.enable_think {
+                        "/think"
+                    } else {
+                        "/no_think"
+                    };
+                    *content = format!("{content_str} {instruction}").into();
+                }
+            }
+        }
+
         let request_body = json!({
             "model": self.model,
-            "messages": messages.iter().map(chat_message_to_json_value).collect::<Vec<_>>(),
+            "messages": messages_json_value,
             "temperature": options.temperature,
             "stream": true,
         });
@@ -152,9 +169,21 @@ impl ChatProvider for OpenAiProvider {
     ) -> AiterResult<Vec<ChatFunctionCall>> {
         let request_url = join_url(&self.base_url, "/chat/completions")?;
 
+        let mut messages_json_value = messages
+            .iter()
+            .map(chat_message_to_json_value)
+            .collect::<Vec<_>>();
+        if self.model.starts_with("qwen3") && !messages.is_empty() {
+            if let Some(content) = messages_json_value[messages.len() - 1].get_mut("content") {
+                if let Some(content_str) = content.as_str() {
+                    *content = format!("{content_str} /no_think").into();
+                }
+            }
+        }
+
         let request_body = json!({
             "model": self.model,
-            "messages": messages.iter().map(chat_message_to_json_value).collect::<Vec<_>>(),
+            "messages": messages_json_value,
             "tools": functions.iter().map(chat_function_to_json_value).collect::<Vec<_>>(),
             "parallel_tool_calls": true,
             "stream": true,

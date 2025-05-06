@@ -68,14 +68,6 @@ pub async fn chat_step(
     mem_write_event_sender: Sender<MemWriteEvent>,
     chat_event_sender: Option<Sender<ChatEvent>>,
 ) -> AiterResult<(ChatMessage, ChatResponseSource)> {
-    let mut chat_completion_options = ChatCompletionOptions::default();
-    let llm_options = VecOptions(&chat_options.llm_options);
-    if let Some(temperature_str) = llm_options.get("temperature") {
-        if let Ok(temperature) = temperature_str.parse() {
-            chat_completion_options = chat_completion_options.with_temperature(temperature);
-        }
-    }
-
     let history_questions = chat_history
         .iter()
         .filter(|m| m.role == Role::User)
@@ -344,6 +336,18 @@ pub async fn chat_step(
     log::debug!("Candidates: {:?}", candidates);
 
     // Generate answer
+    let mut chat_completion_options = ChatCompletionOptions::default();
+    if chat_options.deep {
+        chat_completion_options = chat_completion_options.with_enable_think(true);
+    }
+
+    let llm_options = VecOptions(&chat_options.llm_options);
+    if let Some(temperature_str) = llm_options.get("temperature") {
+        if let Ok(temperature) = temperature_str.parse() {
+            chat_completion_options = chat_completion_options.with_temperature(temperature);
+        }
+    }
+
     let llm_for_chat: Option<String> = if chat_options.deep {
         if chat_options.llm_for_reasoning.is_some() {
             chat_options.llm_for_reasoning.clone()
