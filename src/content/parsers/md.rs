@@ -172,7 +172,8 @@ pub fn to_markdown_doc(path: &Path, _source: &str) -> AiterResult<MarkdownDoc> {
     })
 }
 
-static REGEX_NOT_TABLE_SEP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^\n|]").unwrap());
+static REGEX_NOT_TABLE_SEP: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[^\n|]").expect("NOT_TABLE_SEP regex is invalid"));
 
 fn format_with_tag(text: &str, tag: Option<&Tag>) -> String {
     if let Some(tag) = tag {

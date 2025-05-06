@@ -117,7 +117,7 @@ static JIEBA_TFIDF: LazyLock<TfIdf> = LazyLock::new(|| {
 });
 static REGEX_WORD_FILTER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"[\p{C}\p{P}\p{Z}\p{Extended_Pictographic}\u{FE0F}<>]")
-        .expect("Word filter regex is invalid")
+        .expect("WORD_FILTER regex is invalid")
 });
 
 fn extract_key_words(text: &str) -> Vec<String> {
