@@ -3,10 +3,11 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 pub fn extract_code_block(s: &str) -> String {
-    REGEX_CODE_BLOCK_END
-        .replace(&REGEX_CODE_BLOCK_START.replace(s, ""), "")
-        .trim()
-        .to_string()
+    let s = REGEX_XML_TAG.replace_all(s, "");
+    let s = REGEX_CODE_BLOCK_START.replace(&s, "");
+    let s = REGEX_CODE_BLOCK_END.replace(&s, "");
+
+    s.trim().to_string()
 }
 
 static REGEX_CODE_BLOCK_START: LazyLock<Regex> = LazyLock::new(|| {
@@ -14,6 +15,8 @@ static REGEX_CODE_BLOCK_START: LazyLock<Regex> = LazyLock::new(|| {
 });
 static REGEX_CODE_BLOCK_END: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\s*```[\s\S]*").expect("CODE_BLOCK_END regex is invalid"));
+static REGEX_XML_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"<[^>]+>[\s\S]*?<\/[^>]+>").expect("XML_TAG regex is invalid"));
 
 #[cfg(test)]
 mod tests {
@@ -36,7 +39,23 @@ foobar
             "foobar"
         );
 
-        let json_text = extract_code_block(
+        if let Ok(json) = serde_json::from_str::<HashMap<&str, &str>>(&extract_code_block(
+            r#"
+<think>
+I am thinking...
+</think>
+
+{
+    "foo": "bar"
+}
+"#,
+        )) {
+            assert_eq!(json.get("foo"), Some(&"bar"));
+        } else {
+            assert!(false);
+        }
+
+        if let Ok(json) = serde_json::from_str::<HashMap<&str, &str>>(&extract_code_block(
             r#"
 <think>
 I am thinking...
@@ -50,8 +69,7 @@ I am thinking...
 
 Some more text
 "#,
-        );
-        if let Ok(json) = serde_json::from_str::<HashMap<&str, &str>>(&json_text) {
+        )) {
             assert_eq!(json.get("foo"), Some(&"bar"));
         } else {
             assert!(false);
