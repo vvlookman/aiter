@@ -76,6 +76,7 @@ pub async fn chat_step(
 
     let mut related_questions: HashSet<String> = HashSet::new();
     let mut candidates: HashSet<String> = HashSet::new();
+    let mut call_tool_tasks: Vec<(ChatCallToolTask, String, String)> = vec![];
 
     // Break down the question into sub-questions
     {
@@ -103,26 +104,26 @@ pub async fn chat_step(
         }
     }
 
+    let related_questions_vec: Vec<String> = related_questions.clone().into_iter().collect();
+    log::debug!(
+        "No-simplified related questions: {:?}",
+        &related_questions_vec
+    );
+
     // Try retrieve contents by full text search
     {
-        let mem_path = mem_path.to_path_buf();
-        let question = question.to_string();
-        let related_questions = related_questions.clone();
-        let deep = chat_options.deep;
-        let handle = tokio::spawn(async move {
-            retrieve_doc_implicit(
-                &RetrieveMethod::Fts,
-                &mem_path,
-                &question,
-                &related_questions.into_iter().collect::<Vec<String>>(),
-                deep,
-            )
-            .await
-        });
-        candidates.extend(handle.await??);
+        let contents = retrieve_contents(
+            &RetrieveMethod::Fts,
+            mem_path,
+            question,
+            &related_questions_vec,
+            chat_options.deep,
+        )
+        .await?;
+        candidates.extend(contents);
     }
 
-    // Simplify all questions if no content retrieved by full text search
+    // If no content retrieved so far, simplify all questions and retrieve further
     if candidates.is_empty() {
         let not_simplify_questions: Vec<String> =
             HashSet::<String>::from_iter(related_questions.clone())
@@ -152,185 +153,90 @@ pub async fn chat_step(
                 related_questions.extend(simple_questions);
             }
         }
-    }
 
-    let related_questions: Vec<String> = related_questions.into_iter().collect();
-    log::debug!("All related questions: {:?}", &related_questions);
+        let related_questions_vec: Vec<String> = related_questions.into_iter().collect();
+        log::debug!("Simplified related questions: {:?}", &related_questions_vec);
 
-    // Retrieve contents by full text search
-    let mut content_retrievers: Vec<JoinHandle<AiterResult<Vec<String>>>> = vec![];
-
-    {
-        let mem_path = mem_path.to_path_buf();
-        let question = question.to_string();
-        let related_questions = related_questions.clone();
-        let deep = chat_options.deep;
-        content_retrievers.push(tokio::spawn(async move {
-            retrieve_doc_implicit(
-                &RetrieveMethod::Fts,
-                &mem_path,
-                &question,
-                &related_questions,
-                deep,
-            )
-            .await
-        }));
-    }
-
-    {
-        let mem_path = mem_path.to_path_buf();
-        let question = question.to_string();
-        let related_questions = related_questions.clone();
-        let deep = chat_options.deep;
-        content_retrievers.push(tokio::spawn(async move {
-            retrieve_doc_frag(
-                &RetrieveMethod::Fts,
-                &mem_path,
-                &question,
-                &related_questions,
-                deep,
-            )
-            .await
-        }));
-    }
-
-    {
-        let mem_path = mem_path.to_path_buf();
-        let question = question.to_string();
-        let related_questions = related_questions.clone();
-        let deep = chat_options.deep;
-        content_retrievers.push(tokio::spawn(async move {
-            retrieve_doc_knl(
-                &RetrieveMethod::Fts,
-                &mem_path,
-                &question,
-                &related_questions,
-                deep,
-            )
-            .await
-        }));
-    }
-
-    for handle in content_retrievers {
-        candidates.extend(handle.await??);
-    }
-
-    // Retrieve contents by vector match
-    {
-        let mut content_retrievers: Vec<JoinHandle<AiterResult<Vec<String>>>> = vec![];
-
+        // Retrieve contents by full text search
         {
-            let mem_path = mem_path.to_path_buf();
-            let question = question.to_string();
-            let related_questions = related_questions.clone();
-            let deep = chat_options.deep;
-            content_retrievers.push(tokio::spawn(async move {
-                retrieve_doc_implicit(
-                    &RetrieveMethod::Vec,
-                    &mem_path,
-                    &question,
-                    &related_questions,
-                    deep,
-                )
-                .await
-            }));
+            let contents = retrieve_contents(
+                &RetrieveMethod::Fts,
+                mem_path,
+                question,
+                &related_questions_vec,
+                chat_options.deep,
+            )
+            .await?;
+            candidates.extend(contents);
         }
 
+        // Retrieve contents by vector match
         {
-            let mem_path = mem_path.to_path_buf();
-            let question = question.to_string();
-            let related_questions = related_questions.clone();
-            let deep = chat_options.deep;
-            content_retrievers.push(tokio::spawn(async move {
-                retrieve_doc_frag(
-                    &RetrieveMethod::Vec,
-                    &mem_path,
-                    &question,
-                    &related_questions,
-                    deep,
-                )
-                .await
-            }));
-        }
-
-        {
-            let mem_path = mem_path.to_path_buf();
-            let question = question.to_string();
-            let related_questions = related_questions.clone();
-            let deep = chat_options.deep;
-            content_retrievers.push(tokio::spawn(async move {
-                retrieve_doc_knl(
-                    &RetrieveMethod::Vec,
-                    &mem_path,
-                    &question,
-                    &related_questions,
-                    deep,
-                )
-                .await
-            }));
-        }
-
-        for handle in content_retrievers {
-            candidates.extend(handle.await??);
-        }
-    }
-
-    // Retrieve skills
-    let mut skill_retrievers: Vec<JoinHandle<AiterResult<Vec<db::mem::skill::SkillEntity>>>> =
-        vec![];
-
-    {
-        let mem_path = mem_path.to_path_buf();
-        let question = question.to_string();
-        let related_questions = related_questions.clone();
-        let deep = chat_options.deep;
-
-        skill_retrievers.push(tokio::spawn(async move {
-            retrieve_skill(
+            let contents = retrieve_contents(
                 &RetrieveMethod::Vec,
-                &mem_path,
-                &question,
-                &related_questions,
-                deep,
+                mem_path,
+                question,
+                &related_questions_vec,
+                chat_options.deep,
             )
-            .await
-        }));
-    }
-
-    let mut skills_map: HashMap<String, db::mem::skill::SkillEntity> = HashMap::new();
-    for handle in skill_retrievers {
-        for skill in handle.await?? {
-            skills_map.insert(skill.id.clone(), skill);
+            .await?;
+            candidates.extend(contents);
         }
-    }
 
-    let mut call_tool_tasks: Vec<(ChatCallToolTask, String, String)> = vec![];
+        // Retrieve skills
+        let mut skill_retrievers: Vec<JoinHandle<AiterResult<Vec<db::mem::skill::SkillEntity>>>> =
+            vec![];
 
-    let skills = skills_map.values().cloned().collect::<Vec<_>>();
-    if !skills.is_empty() {
-        log::debug!("Skills: {:?}", skills);
+        {
+            let mem_path = mem_path.to_path_buf();
+            let question = question.to_string();
+            let related_questions_vec = related_questions_vec.clone();
+            let deep = chat_options.deep;
+            skill_retrievers.push(tokio::spawn(async move {
+                retrieve_skill(
+                    &RetrieveMethod::Vec,
+                    &mem_path,
+                    &question,
+                    &related_questions_vec,
+                    deep,
+                )
+                .await
+            }));
+        }
 
-        call_tool_tasks = invoke_skills(
-            &skills,
-            question,
-            chat_history,
-            chat_options.llm_for_chat.as_deref(),
-            chat_event_sender.clone(),
-        )
-        .await?;
+        let mut skills_map: HashMap<String, db::mem::skill::SkillEntity> = HashMap::new();
+        for handle in skill_retrievers {
+            for skill in handle.await?? {
+                skills_map.insert(skill.id.clone(), skill);
+            }
+        }
 
-        let skill_candidates: Vec<String> = call_tool_tasks
-            .iter()
-            .map(|(task, result, _time)| {
-                json!({
-                    "description": task.description,
-                    "parameters": task.parameters,
-                    "result": result,
+        let skills = skills_map.values().cloned().collect::<Vec<_>>();
+        if !skills.is_empty() {
+            log::debug!("Skills: {:?}", skills);
+
+            call_tool_tasks = invoke_skills(
+                &skills,
+                question,
+                chat_history,
+                chat_options.llm_for_chat.as_deref(),
+                chat_event_sender.clone(),
+            )
+            .await?;
+
+            let skill_candidates: Vec<String> = call_tool_tasks
+                .iter()
+                .map(|(task, result, _time)| {
+                    json!({
+                        "description": task.description,
+                        "parameters": task.parameters,
+                        "result": result,
+                    })
+                    .to_string()
                 })
-                .to_string()
-            })
-            .collect();
-        candidates.extend(skill_candidates);
+                .collect();
+            candidates.extend(skill_candidates);
+        }
     }
 
     log::debug!("Candidates: {:?}", candidates);
@@ -465,6 +371,53 @@ pub async fn chat_step(
             Err(err)
         }
     }
+}
+
+async fn retrieve_contents(
+    method: &RetrieveMethod,
+    mem_path: &Path,
+    question: &str,
+    related_questions: &[String],
+    deep: bool,
+) -> AiterResult<Vec<String>> {
+    let mut content_retrievers: Vec<JoinHandle<AiterResult<Vec<String>>>> = vec![];
+
+    {
+        let method = method.clone();
+        let mem_path = mem_path.to_path_buf();
+        let question = question.to_string();
+        let related_questions = related_questions.to_vec();
+        content_retrievers.push(tokio::spawn(async move {
+            retrieve_doc_implicit(&method, &mem_path, &question, &related_questions, deep).await
+        }));
+    }
+
+    {
+        let method = method.clone();
+        let mem_path = mem_path.to_path_buf();
+        let question = question.to_string();
+        let related_questions = related_questions.to_vec();
+        content_retrievers.push(tokio::spawn(async move {
+            retrieve_doc_frag(&method, &mem_path, &question, &related_questions, deep).await
+        }));
+    }
+
+    {
+        let method = method.clone();
+        let mem_path = mem_path.to_path_buf();
+        let question = question.to_string();
+        let related_questions = related_questions.to_vec();
+        content_retrievers.push(tokio::spawn(async move {
+            retrieve_doc_knl(&method, &mem_path, &question, &related_questions, deep).await
+        }));
+    }
+
+    let mut candidates: HashSet<String> = HashSet::new();
+    for handle in content_retrievers {
+        candidates.extend(handle.await??);
+    }
+
+    Ok(candidates.into_iter().collect())
 }
 
 async fn invoke_skills(
