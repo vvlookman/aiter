@@ -64,6 +64,7 @@ watch(
     <template #footer>
       <div class="dialog-footer flex items-end">
         <el-popconfirm
+          v-if="memStats.size"
           confirm-button-type="warning"
           placement="top"
           width="280"
@@ -73,7 +74,7 @@ watch(
           @confirm="onVacuum"
         >
           <template #reference>
-            <el-button v-if="memStats.size" link size="small" type="info">
+            <el-button link size="small" type="info">
               <template v-if="vacuuming">
                 <el-icon class="rotating el-icon--left"><i class="ri-loader-4-line"></i></el-icon>
                 {{ $t('label.vacuuming') }}
