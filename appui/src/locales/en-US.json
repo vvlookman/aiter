@@ -38,6 +38,7 @@
       "name": "Name",
       "protocol": "Protocol"
     },
+    "notice": "Notice",
     "reasoning_llm": "Reasoning LLM",
     "rename": "Rename",
     "require_restart": "Require Restart App",
@@ -83,6 +84,7 @@
     "empty_bot_message": "[Empty message]",
     "error": "Error: {error}",
     "invalid_name": "Invalid name",
+    "no_llm": "Access LLM to make it work properly, click 'Settings'-'Access to Chat LLM'-'Add'",
     "no_tool": "No tool exists",
     "success_access_to_remote": "Access to remote Aiter success, service version: {version}",
     "success_copy": "Copy success",

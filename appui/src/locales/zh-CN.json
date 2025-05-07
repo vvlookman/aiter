@@ -38,6 +38,7 @@
       "name": "名称",
       "protocol": "协议类型"
     },
+    "notice": "注意",
     "reasoning_llm": "推理模型",
     "rename": "重命名",
     "require_restart": "需要重启应用",
@@ -83,6 +84,7 @@
     "empty_bot_message": "[消息为空]",
     "error": "错误: {error}",
     "invalid_name": "该名称不合法",
+    "no_llm": "接入 LLM 后才可以正常使用功能，点击「设置」-「接入对话模型」-「添加」",
     "no_tool": "尚未接入任何工具",
     "success_access_to_remote": "连接远程 Aiter 成功，服务版本 {version}",
     "success_copy": "复制成功",

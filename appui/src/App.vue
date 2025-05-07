@@ -7,8 +7,9 @@ import SkillMain from '@/components/skill/SkillMain.vue';
 import { useAiStore } from '@/stores/ai';
 import { useAppStore } from '@/stores/app';
 import { useChatStore } from '@/stores/chat';
+import { useLlmStore } from '@/stores/llm';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { getCurrentInstance, onErrorCaptured, onMounted, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -16,6 +17,7 @@ const { locale, t } = useI18n();
 const aiStore = useAiStore();
 const appStore = useAppStore();
 const chatStore = useChatStore();
+const llmStore = useLlmStore();
 const { appContext } = getCurrentInstance();
 
 const state = reactive({
@@ -50,6 +52,17 @@ onMounted(async () => {
 
   aiStore.active(localStorage.getItem('aiter-ai'));
   await updateTitle();
+
+  await llmStore.fetchActivedNames();
+  if (!llmStore.defaultChatLlmName) {
+    ElMessageBox.alert(t('message.no_llm'), t('label.notice'), {
+      confirmButtonText: t('label.confirm'),
+      callback: () => {
+        appStore.mainMenu = 'settings';
+        appStore.settingsMenu = 'llm_chat';
+      },
+    });
+  }
 });
 
 watch(
