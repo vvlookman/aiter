@@ -6,6 +6,8 @@ English &nbsp; [中文](README.zh-CN.md)
 
 Lightweight AI assistant based on deep content understanding
 
+The term "deep understanding" refers to the process that in addition to content chunking, the AI assistant also performs tasks such as summarizing sections, extracting implicit information, and generating knowledge points. This enables the AI assistant to have a more comprehensive understanding and recall of the content.
+
 ## Quick Start
 
 ### Use App
