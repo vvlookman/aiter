@@ -54,7 +54,12 @@ const fetchSkills = async () => {
   state.requestingFetchSkills = true;
 
   try {
-    let skills = await callSkillList(aiStore.getActiveName(), state.search, pageSize + 1, state.skills.length);
+    const aiName = aiStore.getActiveName();
+    let skills = await callSkillList(aiName, state.search, pageSize + 1, state.skills.length);
+    if (aiName !== aiStore.getActiveName()) {
+      return;
+    }
+
     if (skills.length > pageSize) {
       state.skills = state.skills.concat(skills.splice(0, pageSize));
       state.hasMoreSkills = true;

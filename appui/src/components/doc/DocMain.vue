@@ -64,7 +64,12 @@ const fetchDocs = async () => {
   state.requestingFetchDocs = true;
 
   try {
-    let docs = await callDocList(aiStore.getActiveName(), state.search, pageSize + 1, state.docs.length);
+    const aiName = aiStore.getActiveName();
+    let docs = await callDocList(aiName, state.search, pageSize + 1, state.docs.length);
+    if (aiName !== aiStore.getActiveName()) {
+      return;
+    }
+
     if (docs.length > pageSize) {
       state.docs = state.docs.concat(docs.splice(0, pageSize));
       state.hasMoreDocs = true;
