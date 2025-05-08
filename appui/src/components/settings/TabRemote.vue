@@ -53,7 +53,7 @@ onMounted(async () => {
 watch(
   () => state.remoteOn,
   (val) => {
-    if (!val) {
+    if (!val && localStorage.getItem('aiter-base-url')) {
       localStorage.removeItem('aiter-base-url');
       localStorage.removeItem('aiter-token');
 
