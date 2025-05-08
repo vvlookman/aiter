@@ -122,6 +122,12 @@ pub async fn list_digesting(ai_name: Option<&str>, limit: u64) -> AiterResult<Ve
     db::mem::doc::list_digesting(&mem_path, limit).await
 }
 
+pub async fn list_not_digested(ai_name: Option<&str>) -> AiterResult<Vec<DocEntity>> {
+    let mem_path = get_mem_path(ai_name).await?;
+
+    db::mem::doc::list_not_digested(&mem_path).await
+}
+
 pub async fn pull(
     ai_name: Option<&str>,
     doc_id: &str,

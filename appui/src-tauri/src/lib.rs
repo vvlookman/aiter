@@ -71,10 +71,13 @@ pub async fn run() {
     let app_state = AppState {
         app_config,
         chat_event_senders: DashMap::new(),
-        notify_digest_event_sender: Some(notify_digest_event_sender),
+        notify_digest_event_sender: Some(notify_digest_event_sender.clone()),
     };
 
     spawn_digest_queue(app_config.clone(), notify_digest_event_receiver);
+
+    // Spawn to process not digested documents
+    spawn_process_not_digested(app_config.clone(), notify_digest_event_sender);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -142,6 +145,24 @@ async fn get_mem_write_event_sender(ai: Option<&str>) -> AiterResult<mpsc::Sende
     }
 }
 
+async fn process_not_digested(
+    ai: Option<&str>,
+    notify_digest_event_sender: mpsc::Sender<NotifyDigestEvent>,
+) -> AiterResult<()> {
+    let docs = api::mem::doc::list_not_digested(ai).await?;
+
+    for doc in docs {
+        notify_digest_event_sender
+            .send(NotifyDigestEvent {
+                ai: ai.map(|s| s.to_string()),
+                doc_id: doc.id,
+            })
+            .await?;
+    }
+
+    Ok(())
+}
+
 async fn reset_terminated_digesting_tasks() -> AiterResult<()> {
     for ai in api::ai::list().await? {
         api::mem::doc::reset_not_digested_but_started(Some(&ai.name)).await?;
@@ -196,6 +217,26 @@ fn spawn_digest_queue(
 
                     drop(permit);
                 });
+            }
+        }
+    });
+}
+
+fn spawn_process_not_digested(
+    app_config: AppConfig,
+    notify_digest_event_sender: mpsc::Sender<NotifyDigestEvent>,
+) {
+    if app_config.skip_digest {
+        return;
+    }
+
+    async_runtime::spawn(async move {
+        let _ = process_not_digested(None, notify_digest_event_sender.clone()).await;
+
+        if let Ok(ai_list) = api::ai::list().await {
+            for ai in ai_list {
+                let _ =
+                    process_not_digested(Some(&ai.name), notify_digest_event_sender.clone()).await;
             }
         }
     });

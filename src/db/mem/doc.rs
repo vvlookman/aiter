@@ -460,6 +460,17 @@ LIMIT ?
     DocEntity::collect_rows(&mut rows).await
 }
 
+pub async fn list_not_digested(db_path: &Path) -> AiterResult<Vec<DocEntity>> {
+    let conn = open(db_path).await?;
+    let mut rows = conn.query(r#"
+SELECT "id", "source", "content_type", "title", "preview", "digest_start", "digest_end", "digest_retry", "digest_error", "created_at", "updated_at"
+FROM "doc"
+WHERE "digest_end" IS NULL
+;"#, ()).await?;
+
+    DocEntity::collect_rows(&mut rows).await
+}
+
 pub async fn reset_not_digested(db_path: &Path) -> AiterResult<u64> {
     let conn = open(db_path).await?;
     Ok(conn
