@@ -76,7 +76,6 @@ pub async fn chat_step(
 
     let mut related_questions: HashSet<String> = HashSet::new();
     let mut candidates: HashSet<String> = HashSet::new();
-    let mut call_tool_tasks: Vec<(ChatCallToolTask, String, String)> = vec![];
 
     // Break down the question into sub-questions
     {
@@ -104,26 +103,23 @@ pub async fn chat_step(
         }
     }
 
-    let related_questions_vec: Vec<String> = related_questions.clone().into_iter().collect();
-    log::debug!(
-        "No-simplified related questions: {:?}",
-        &related_questions_vec
-    );
-
     // Try retrieve contents by full text search
     {
         let contents = retrieve_contents(
             &RetrieveMethod::Fts,
             mem_path,
             question,
-            &related_questions_vec,
+            &related_questions
+                .clone()
+                .into_iter()
+                .collect::<Vec<String>>(),
             chat_options.deep,
         )
         .await?;
         candidates.extend(contents);
     }
 
-    // If no content retrieved so far, simplify all questions and retrieve further
+    // Try retrieve contents by full text search again if no content retrieved, simplify all questions before that
     if candidates.is_empty() {
         let not_simplify_questions: Vec<String> =
             HashSet::<String>::from_iter(related_questions.clone())
@@ -151,92 +147,97 @@ pub async fn chat_step(
                     &simple_questions
                 );
                 related_questions.extend(simple_questions);
+
+                // Retrieve contents by full text search again
+                {
+                    let contents = retrieve_contents(
+                        &RetrieveMethod::Fts,
+                        mem_path,
+                        question,
+                        &related_questions
+                            .clone()
+                            .into_iter()
+                            .collect::<Vec<String>>(),
+                        chat_options.deep,
+                    )
+                    .await?;
+                    candidates.extend(contents);
+                }
             }
         }
+    }
 
-        let related_questions_vec: Vec<String> = related_questions.into_iter().collect();
-        log::debug!("Simplified related questions: {:?}", &related_questions_vec);
+    let related_questions_vec: Vec<String> = related_questions.into_iter().collect();
+    log::debug!("All related questions: {:?}", &related_questions_vec);
 
-        // Retrieve contents by full text search
-        {
-            let contents = retrieve_contents(
-                &RetrieveMethod::Fts,
-                mem_path,
-                question,
-                &related_questions_vec,
-                chat_options.deep,
-            )
-            .await?;
-            candidates.extend(contents);
-        }
+    // Retrieve contents by vector match
+    {
+        let contents = retrieve_contents(
+            &RetrieveMethod::Vec,
+            mem_path,
+            question,
+            &related_questions_vec,
+            chat_options.deep,
+        )
+        .await?;
+        candidates.extend(contents);
+    }
 
-        // Retrieve contents by vector match
-        {
-            let contents = retrieve_contents(
+    // Retrieve skills
+    let mut skill_retrievers: Vec<JoinHandle<AiterResult<Vec<db::mem::skill::SkillEntity>>>> =
+        vec![];
+
+    {
+        let mem_path = mem_path.to_path_buf();
+        let question = question.to_string();
+        let related_questions_vec = related_questions_vec.clone();
+        let deep = chat_options.deep;
+        skill_retrievers.push(tokio::spawn(async move {
+            retrieve_skill(
                 &RetrieveMethod::Vec,
-                mem_path,
-                question,
+                &mem_path,
+                &question,
                 &related_questions_vec,
-                chat_options.deep,
+                deep,
             )
-            .await?;
-            candidates.extend(contents);
+            .await
+        }));
+    }
+
+    let mut skills_map: HashMap<String, db::mem::skill::SkillEntity> = HashMap::new();
+    for handle in skill_retrievers {
+        for skill in handle.await?? {
+            skills_map.insert(skill.id.clone(), skill);
         }
+    }
 
-        // Retrieve skills
-        let mut skill_retrievers: Vec<JoinHandle<AiterResult<Vec<db::mem::skill::SkillEntity>>>> =
-            vec![];
+    let mut call_tool_tasks: Vec<(ChatCallToolTask, String, String)> = vec![];
 
-        {
-            let mem_path = mem_path.to_path_buf();
-            let question = question.to_string();
-            let related_questions_vec = related_questions_vec.clone();
-            let deep = chat_options.deep;
-            skill_retrievers.push(tokio::spawn(async move {
-                retrieve_skill(
-                    &RetrieveMethod::Vec,
-                    &mem_path,
-                    &question,
-                    &related_questions_vec,
-                    deep,
-                )
-                .await
-            }));
-        }
+    let skills = skills_map.values().cloned().collect::<Vec<_>>();
+    if !skills.is_empty() {
+        log::debug!("Skills: {:?}", skills);
 
-        let mut skills_map: HashMap<String, db::mem::skill::SkillEntity> = HashMap::new();
-        for handle in skill_retrievers {
-            for skill in handle.await?? {
-                skills_map.insert(skill.id.clone(), skill);
-            }
-        }
+        call_tool_tasks = invoke_skills(
+            &skills,
+            question,
+            chat_history,
+            chat_options.llm_for_chat.as_deref(),
+            chat_event_sender.clone(),
+        )
+        .await?;
 
-        let skills = skills_map.values().cloned().collect::<Vec<_>>();
-        if !skills.is_empty() {
-            log::debug!("Skills: {:?}", skills);
-
-            call_tool_tasks = invoke_skills(
-                &skills,
-                question,
-                chat_history,
-                chat_options.llm_for_chat.as_deref(),
-                chat_event_sender.clone(),
-            )
-            .await?;
-
-            let skill_candidates: Vec<String> = call_tool_tasks
-                .iter()
-                .map(|(task, result, _time)| {
-                    json!({
-                        "description": task.description,
-                        "parameters": task.parameters,
-                        "result": result,
-                    })
-                    .to_string()
+        let skill_candidates: Vec<String> = call_tool_tasks
+            .iter()
+            .map(|(task, result, _time)| {
+                json!({
+                    "description": task.description,
+                    "parameters": task.parameters,
+                    "result": result,
                 })
-                .collect();
-            candidates.extend(skill_candidates);
-        }
+                .to_string()
+            })
+            .collect();
+        candidates.extend(skill_candidates);
     }
 
     log::debug!("Candidates: {:?}", candidates);
