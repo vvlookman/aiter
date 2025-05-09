@@ -141,6 +141,7 @@ impl ChatCommand {
                     stdout().flush().unwrap();
                 }
                 ChatEvent::CallToolEnd(_task_id, _result, _time) => {}
+                ChatEvent::CallToolError(_task_id, _error) => {}
                 ChatEvent::ReasoningStart => {}
                 ChatEvent::ReasoningContent(delta) => {
                     print!("{}", delta.bright_black());

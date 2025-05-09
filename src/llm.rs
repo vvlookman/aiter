@@ -15,6 +15,7 @@ pub enum ChatEvent {
     StreamStart,
     CallToolStart(ChatCallToolTask),
     CallToolEnd(String, String, String),
+    CallToolError(String, String),
     ReasoningStart,
     ReasoningContent(String),
     ReasoningEnd,

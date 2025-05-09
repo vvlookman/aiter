@@ -104,6 +104,7 @@ impl LlmTestCommand {
                 ChatEvent::StreamStart => {}
                 ChatEvent::CallToolStart(_task) => {}
                 ChatEvent::CallToolEnd(_task_id, _result, _time) => {}
+                ChatEvent::CallToolError(_task_id, _error) => {}
                 ChatEvent::ReasoningStart => {}
                 ChatEvent::ReasoningContent(delta) => {
                     print!("{}", delta.bright_black());

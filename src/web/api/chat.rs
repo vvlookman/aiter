@@ -67,6 +67,17 @@ pub async fn index(data: web::Json<ChatReqData>) -> impl Responder {
                         break;
                     }
                 }
+                ChatEvent::CallToolError(task_id, error) => {
+                    let json_str =
+                        json!({ "call_tool_error": { "id": task_id, "error": error } }).to_string();
+                    if sse_event_sender_1
+                        .send(sse::Data::new(json_str).into())
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
                 ChatEvent::ReasoningStart => {}
                 ChatEvent::ReasoningContent(content) => {
                     let json_str = json!({ "reasoning": content }).to_string();

@@ -447,7 +447,9 @@ async fn invoke_skills(
         api::llm::chat_function_calls(&functions, question, chat_history, chat_llm_name).await?;
     log::debug!("Function calls: {:?}", function_calls);
 
-    let mut calls: Vec<JoinHandle<AiterResult<(ChatCallToolTask, String, String)>>> = vec![];
+    let mut calls: HashMap<String, ChatCallToolTask> = HashMap::new();
+    let mut call_handles: HashMap<String, JoinHandle<AiterResult<(String, String)>>> =
+        HashMap::new();
     for function_call in function_calls {
         let tool_id = function_call.name;
         let options = function_call.arguments;
@@ -465,12 +467,16 @@ async fn invoke_skills(
                 }
             }
 
+            let task_id = Ulid::new().to_string();
+
             let task = ChatCallToolTask {
-                id: Ulid::new().to_string(),
+                id: task_id.clone(),
                 tool_id: tool_id.clone(),
                 description,
                 parameters,
             };
+
+            calls.insert(task_id.clone(), task.clone());
 
             if let Some(chat_event_sender) = &chat_event_sender {
                 chat_event_sender
@@ -478,32 +484,58 @@ async fn invoke_skills(
                     .await?;
             }
 
-            calls.push(tokio::spawn(async move {
-                let result = api::tool::run(&tool_id, &options).await?;
-                let time = now_iso_datetime_string();
+            call_handles.insert(
+                task_id.clone(),
+                tokio::spawn(async move {
+                    let result = api::tool::run(&tool_id, &options).await?;
+                    let time = now_iso_datetime_string();
 
-                Ok((task, result, time))
-            }));
+                    Ok((result, time))
+                }),
+            );
         }
     }
 
     let mut call_results = vec![];
-    for handle in calls {
-        // Allow call function tool failed
-        if let Ok(handle_result) = handle.await {
-            match handle_result {
-                Ok((task, result, time)) => {
-                    call_results.push((task.clone(), result.clone(), time.clone()));
+
+    for (task_id, handle) in call_handles {
+        match handle.await {
+            Ok(handle_result) => match handle_result {
+                Ok((result, time)) => {
+                    if let Some(task) = calls.get(&task_id) {
+                        call_results.push((task.clone(), result.clone(), time.clone()));
+                    }
 
                     if let Some(chat_event_sender) = &chat_event_sender {
                         let _ = chat_event_sender
-                            .send(ChatEvent::CallToolEnd(task.id.to_string(), result, time))
+                            .send(ChatEvent::CallToolEnd(task_id.to_string(), result, time))
                             .await;
                     }
                 }
                 Err(err) => {
+                    if let Some(chat_event_sender) = &chat_event_sender {
+                        let _ = chat_event_sender
+                            .send(ChatEvent::CallToolError(
+                                task_id.to_string(),
+                                err.to_string(),
+                            ))
+                            .await;
+                    }
+
                     log::error!("Call function failed: {:?}", err);
                 }
+            },
+            Err(err) => {
+                if let Some(chat_event_sender) = &chat_event_sender {
+                    let _ = chat_event_sender
+                        .send(ChatEvent::CallToolError(
+                            task_id.to_string(),
+                            err.to_string(),
+                        ))
+                        .await;
+                }
+
+                log::error!("Call function failed: {:?}", err);
             }
         }
     }

@@ -63,13 +63,14 @@ const processData = (data) => {
     state.chatReceiving = true;
   }
 
-  let content, reasoning, call_tool_start, call_tool_end;
+  let content, reasoning, call_tool_start, call_tool_end, call_tool_error;
   try {
     const json = JSON.parse(data);
     content = json.content;
     reasoning = json.reasoning;
     call_tool_start = json.call_tool_start;
     call_tool_end = json.call_tool_end;
+    call_tool_error = json.call_tool_error;
   } catch {
     content = data;
   }
@@ -86,6 +87,11 @@ const processData = (data) => {
       const i = currentMessage.call_tools.findIndex((item) => item?.task.id == call_tool_end.id);
       if (i >= 0) {
         currentMessage.call_tools[i]['time'] = call_tool_end['time'];
+      }
+    } else if (call_tool_error) {
+      const i = currentMessage.call_tools.findIndex((item) => item?.task.id == call_tool_error.id);
+      if (i >= 0) {
+        currentMessage.call_tools[i]['error'] = call_tool_error['error'];
       }
     }
   } else {

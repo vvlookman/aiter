@@ -47,6 +47,13 @@ pub async fn chat(
                         break;
                     }
                 }
+                api::llm::ChatEvent::CallToolError(task_id, error) => {
+                    let json_str =
+                        json!({ "call_tool_error": { "id": task_id, "error": error } }).to_string();
+                    if channel.send(json_str).is_err() {
+                        break;
+                    }
+                }
                 api::llm::ChatEvent::ReasoningStart => {}
                 api::llm::ChatEvent::ReasoningContent(content) => {
                     let json_str = json!({ "reasoning": content }).to_string();

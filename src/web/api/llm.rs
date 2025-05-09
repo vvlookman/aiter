@@ -131,6 +131,7 @@ pub async fn test_chat(data: web::Json<LlmTestChatReqData>) -> impl Responder {
                 ChatEvent::StreamStart => {}
                 ChatEvent::CallToolStart(_task) => {}
                 ChatEvent::CallToolEnd(_task_id, _result, _time) => {}
+                ChatEvent::CallToolError(_task_id, _error) => {}
                 ChatEvent::ReasoningStart => {}
                 ChatEvent::ReasoningContent(delta) => {
                     if sse_event_sender_1

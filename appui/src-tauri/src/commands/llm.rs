@@ -106,7 +106,8 @@ pub async fn llm_test_chat(
             match event {
                 api::llm::ChatEvent::StreamStart => {}
                 api::llm::ChatEvent::CallToolStart(_task) => {}
-                api::llm::ChatEvent::CallToolEnd(_task, _result, _time) => {}
+                api::llm::ChatEvent::CallToolEnd(_task_id, _result, _time) => {}
+                api::llm::ChatEvent::CallToolError(_task_id, _error) => {}
                 api::llm::ChatEvent::ReasoningStart => {}
                 api::llm::ChatEvent::ReasoningContent(delta) => {
                     if channel.send(delta).is_err() {
