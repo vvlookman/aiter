@@ -112,14 +112,6 @@ impl ServeCommand {
             Some(sha256(self.pass.as_bytes()))
         };
 
-        // Reset all terminated digesting tasks
-        {
-            for ai in api::ai::list().await? {
-                api::mem::doc::reset_not_digested_but_started(Some(&ai.name)).await?;
-            }
-            api::mem::doc::reset_not_digested_but_started(None).await?;
-        }
-
         let app_config = AppConfig {
             digest_batch: self.option_digest_batch.max(1),
             digest_concurrent: self.option_digest_concurrent.max(1),
@@ -127,11 +119,17 @@ impl ServeCommand {
             skip_digest: self.option_skip_digest,
         };
 
+        // Reset all terminated digesting tasks
+        let _ = reset_terminated_digesting_tasks().await;
+
         let server = HttpServer::new(move || {
             let (notify_digest_event_sender, notify_digest_event_receiver) =
                 mpsc::channel::<NotifyDigestEvent>(CHANNEL_BUFFER_DEFAULT);
 
             spawn_digest_queue(app_config.clone(), notify_digest_event_receiver);
+
+            // Spawn to process not digested documents
+            spawn_process_not_digested(app_config.clone(), notify_digest_event_sender.clone());
 
             App::new()
                 .app_data(Data::new(AppState {
@@ -238,6 +236,33 @@ impl ServeCommand {
     }
 }
 
+async fn process_not_digested(
+    ai: Option<&str>,
+    notify_digest_event_sender: mpsc::Sender<NotifyDigestEvent>,
+) -> AiterResult<()> {
+    let docs = api::mem::doc::list_not_digested(ai).await?;
+
+    for doc in docs {
+        notify_digest_event_sender
+            .send(NotifyDigestEvent {
+                ai: ai.map(|s| s.to_string()),
+                doc_id: doc.id,
+            })
+            .await?;
+    }
+
+    Ok(())
+}
+
+async fn reset_terminated_digesting_tasks() -> AiterResult<()> {
+    for ai in api::ai::list().await? {
+        api::mem::doc::reset_not_digested_but_started(Some(&ai.name)).await?;
+    }
+    api::mem::doc::reset_not_digested_but_started(None).await?;
+
+    Ok(())
+}
+
 fn spawn_digest_queue(
     app_config: AppConfig,
     mut notify_digest_event_receiver: mpsc::Receiver<NotifyDigestEvent>,
@@ -274,6 +299,26 @@ fn spawn_digest_queue(
 
                     drop(permit);
                 });
+            }
+        }
+    });
+}
+
+fn spawn_process_not_digested(
+    app_config: AppConfig,
+    notify_digest_event_sender: mpsc::Sender<NotifyDigestEvent>,
+) {
+    if app_config.skip_digest {
+        return;
+    }
+
+    tokio::spawn(async move {
+        let _ = process_not_digested(None, notify_digest_event_sender.clone()).await;
+
+        if let Ok(ai_list) = api::ai::list().await {
+            for ai in ai_list {
+                let _ =
+                    process_not_digested(Some(&ai.name), notify_digest_event_sender.clone()).await;
             }
         }
     });

@@ -1,5 +1,5 @@
 <script setup>
-import { isRemoteCall, callLlmActive, callLlmDelete, callLlmEdit, callLlmTestChat } from '@/call';
+import { callAppGetRemoteUrl, callLlmActive, callLlmDelete, callLlmEdit, callLlmTestChat } from '@/call';
 import AddReasoningLlmDialog from '@/components/settings/AddReasoningLlmDialog.vue';
 import SettingsMenuItem from '@/components/settings/SettingsMenuItem.vue';
 import { useLlmStore } from '@/stores/llm';
@@ -117,7 +117,8 @@ const onTest = async () => {
     state.currentShowTestContent = true;
 
     let hooks;
-    if (isRemoteCall()) {
+    const remoteUrl = await callAppGetRemoteUrl();
+    if (remoteUrl) {
       const eventCallback = (event) => {
         let { data } = event;
 

@@ -7,6 +7,8 @@ pub enum ConfigKey {
     AppDigestBatch,
     AppDigestConcurrent,
     AppDigestDeep,
+    AppRemoteUrl,
+    AppRemoteToken,
     AppSkipDigest,
 }
 

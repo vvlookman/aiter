@@ -1,5 +1,5 @@
 <script setup>
-import { isRemoteCall, callChat, callChatAbort, callChatClear, callChatDelete, callChatHistory } from '@/call';
+import { callAppGetRemoteUrl, callChat, callChatAbort, callChatClear, callChatDelete, callChatHistory } from '@/call';
 import BotMessage from '@/components/chat/BotMessage.vue';
 import ChatSidebar from '@/components/chat/ChatSidebar.vue';
 import UserInput from '@/components/chat/UserInput.vue';
@@ -160,7 +160,8 @@ const onSend = async (e) => {
     nextTick(scrollToBottom);
 
     let hooks;
-    if (isRemoteCall()) {
+    const remoteUrl = await callAppGetRemoteUrl();
+    if (remoteUrl) {
       const abortCallback = (abortCtrl) => {
         state.chatAbortCtrl = abortCtrl;
       };
@@ -233,7 +234,8 @@ const onSend = async (e) => {
 
 const onStop = async () => {
   let hooks;
-  if (isRemoteCall()) {
+  const remoteUrl = await callAppGetRemoteUrl();
+  if (remoteUrl) {
     hooks = {
       chatAbortCtrl: state.chatAbortCtrl,
     };

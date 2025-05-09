@@ -19,11 +19,13 @@ struct AppState {
     notify_digest_event_sender: Option<mpsc::Sender<NotifyDigestEvent>>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct AppConfig {
     digest_batch: usize,
     digest_concurrent: usize,
     digest_deep: bool,
+    remote_url: String,
+    remote_token: String,
     skip_digest: bool,
 }
 
@@ -55,6 +57,16 @@ pub async fn run() {
             .unwrap_or(None)
             .map(|s| s.to_lowercase() == "true")
             .unwrap_or(false),
+        remote_url: api::config::get("AppRemoteUrl")
+            .await
+            .unwrap_or(None)
+            .map(|s| s.to_string())
+            .unwrap_or_default(),
+        remote_token: api::config::get("AppRemoteToken")
+            .await
+            .unwrap_or(None)
+            .map(|s| s.to_string())
+            .unwrap_or_default(),
         skip_digest: api::config::get("AppSkipDigest")
             .await
             .unwrap_or(None)
@@ -62,22 +74,32 @@ pub async fn run() {
             .unwrap_or(false),
     };
 
-    // Reset all terminated digesting tasks
-    let _ = reset_terminated_digesting_tasks().await;
+    let app_state = if app_config.remote_url.is_empty() {
+        // Reset all terminated digesting tasks
+        let _ = reset_terminated_digesting_tasks().await;
 
-    let (notify_digest_event_sender, notify_digest_event_receiver) =
-        mpsc::channel::<NotifyDigestEvent>(CHANNEL_BUFFER_DEFAULT);
+        let (notify_digest_event_sender, notify_digest_event_receiver) =
+            mpsc::channel::<NotifyDigestEvent>(CHANNEL_BUFFER_DEFAULT);
 
-    let app_state = AppState {
-        app_config,
-        chat_event_senders: DashMap::new(),
-        notify_digest_event_sender: Some(notify_digest_event_sender.clone()),
+        spawn_digest_queue(app_config.clone(), notify_digest_event_receiver);
+
+        // Spawn to process not digested documents
+        spawn_process_not_digested(app_config.clone(), notify_digest_event_sender.clone());
+
+        AppState {
+            app_config: app_config.clone(),
+            chat_event_senders: DashMap::new(),
+            notify_digest_event_sender: Some(notify_digest_event_sender),
+        }
+    } else {
+        // If remote URL is set, no local digesting thread will be spawned
+        // Check out /src/cli/serve.rs for more details about how the server process digesting
+        AppState {
+            app_config: app_config.clone(),
+            chat_event_senders: DashMap::new(),
+            notify_digest_event_sender: None,
+        }
     };
-
-    spawn_digest_queue(app_config.clone(), notify_digest_event_receiver);
-
-    // Spawn to process not digested documents
-    spawn_process_not_digested(app_config.clone(), notify_digest_event_sender);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -86,6 +108,9 @@ pub async fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             commands::app_config,
+            commands::app_get_remote_url,
+            commands::app_get_remote_token,
+            commands::app_set_remote,
             commands::core_version,
             commands::is_npx_installed,
             commands::is_uv_installed,

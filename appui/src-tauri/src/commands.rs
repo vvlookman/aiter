@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use aiter::api;
+use aiter::{api, error::AiterResult};
 
 use crate::{AppConfig, AppState};
 
@@ -15,7 +15,28 @@ pub mod tool;
 
 #[tauri::command]
 pub fn app_config(state: tauri::State<'_, AppState>) -> AppConfig {
-    state.app_config
+    state.app_config.clone()
+}
+
+#[tauri::command]
+pub async fn app_get_remote_url() -> AiterResult<Option<String>> {
+    api::config::get("AppRemoteUrl").await
+}
+
+#[tauri::command]
+pub async fn app_get_remote_token() -> AiterResult<Option<String>> {
+    api::config::get("AppRemoteToken").await
+}
+
+#[tauri::command]
+pub async fn app_set_remote(
+    remote_url: Option<&str>,
+    remote_token: Option<&str>,
+) -> AiterResult<()> {
+    api::config::set("AppRemoteUrl", remote_url.unwrap_or_default()).await?;
+    api::config::set("AppRemoteToken", remote_token.unwrap_or_default()).await?;
+
+    Ok(())
 }
 
 #[tauri::command]

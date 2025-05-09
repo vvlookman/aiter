@@ -1,9 +1,11 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { invoke } from '@tauri-apps/api/core';
 import axios from 'axios';
 
 class ApiClient {
-  getApiBaseUrl() {
-    return `${localStorage.getItem('aiter-base-url')}/api`;
+  async getApiBaseUrl() {
+    const remoteUrl = await invoke('app_get_remote_url');
+    return `${remoteUrl}/api`;
   }
 
   async get(url, params, options) {
@@ -19,7 +21,7 @@ class ApiClient {
   }
 
   async request(method, url, payload, options) {
-    const baseURL = this.getApiBaseUrl();
+    const baseURL = await this.getApiBaseUrl();
 
     const axiosConfig = {
       baseURL,
@@ -35,9 +37,9 @@ class ApiClient {
       }
 
       axiosConfig.headers = options?.headers ?? {};
-      const token = localStorage.getItem('aiter-token');
-      if (token) {
-        axiosConfig.headers['Authorization'] = `Bearer ${token}`;
+      const remoteToken = await invoke('app_get_remote_token');
+      if (remoteToken) {
+        axiosConfig.headers['Authorization'] = `Bearer ${remoteToken}`;
       }
 
       const { abortCallback } = options ?? {};
@@ -72,7 +74,7 @@ class ApiClient {
   }
 
   async sse(url, params, options) {
-    const baseURL = this.getApiBaseUrl();
+    const baseURL = await this.getApiBaseUrl();
 
     const { abortCallback, eventCallback } = options ?? {};
 
@@ -82,9 +84,9 @@ class ApiClient {
     }
 
     let headers = options?.headers ?? { 'Content-Type': 'application/json' };
-    const token = localStorage.getItem('aiter-token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    const remoteToken = await invoke('app_get_remote_token');
+    if (remoteToken) {
+      headers['Authorization'] = `Bearer ${remoteToken}`;
     }
 
     try {

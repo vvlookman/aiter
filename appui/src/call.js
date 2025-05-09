@@ -1,18 +1,28 @@
 /*
- * Call functions via IPC or HTTP, depending on if baseUrl is set.
+ * Call functions via IPC or HTTP, depending on if remoteUrl is set.
  */
 
 import api from '@/api';
 import { invoke } from '@tauri-apps/api/core';
 
-const baseUrl = localStorage.getItem('aiter-base-url');
+async function getAppConfigRemoteUrl() {
+  const appConfig = (await invoke('app_config')) ?? {};
+  return appConfig.remote_url;
+}
 
-export function isRemoteCall() {
-  return !!baseUrl;
+export async function callAppGetRemoteUrl() {
+  return await invoke('app_get_remote_url');
+}
+
+export async function callAppSetRemote(remoteUrl, remoteToken) {
+  return await invoke('app_set_remote', {
+    remoteUrl,
+    remoteToken,
+  });
 }
 
 export async function callCoreVersion() {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.get('/version');
   } else {
     return await invoke('core_version');
@@ -20,7 +30,7 @@ export async function callCoreVersion() {
 }
 
 export async function callAiAdd(name) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/ai/add', { name });
   } else {
     return await invoke('ai_add', { name });
@@ -28,7 +38,7 @@ export async function callAiAdd(name) {
 }
 
 export async function callAiDelete(name) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/ai/delete', { name });
   } else {
     return await invoke('ai_delete', { name });
@@ -36,7 +46,7 @@ export async function callAiDelete(name) {
 }
 
 export async function callAiList() {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/ai/list');
   } else {
     return await invoke('ai_list');
@@ -44,7 +54,7 @@ export async function callAiList() {
 }
 
 export async function callAiRename(name, newName) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/ai/rename', { name, new_name: newName });
   } else {
     return await invoke('ai_rename', {
@@ -65,7 +75,7 @@ export async function callChat(
   options,
   hooks,
 ) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.sse(
       '/chat/',
       {
@@ -100,7 +110,7 @@ export async function callChat(
 }
 
 export async function callChatAbort(hooks) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return hooks.chatAbortCtrl?.abort();
   } else {
     return await invoke('chat_abort', hooks);
@@ -108,7 +118,7 @@ export async function callChatAbort(hooks) {
 }
 
 export async function callChatClear(ai, session) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/chat/clear', {
       ai,
       session,
@@ -122,7 +132,7 @@ export async function callChatClear(ai, session) {
 }
 
 export async function callChatDelete(ai, session, exchange) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/chat/delete', {
       ai,
       session,
@@ -138,7 +148,7 @@ export async function callChatDelete(ai, session, exchange) {
 }
 
 export async function callChatHistory(ai, session) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/chat/history', {
       ai,
       session,
@@ -152,7 +162,7 @@ export async function callChatHistory(ai, session) {
 }
 
 export async function callDocCountPart(ai, id) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     const count = await api.post('/doc/count-part', {
       ai,
       id,
@@ -168,7 +178,7 @@ export async function callDocCountPart(ai, id) {
 }
 
 export async function callDocDelete(ai, id) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/doc/delete', {
       ai,
       id,
@@ -182,7 +192,7 @@ export async function callDocDelete(ai, id) {
 }
 
 export async function callDocGetPart(ai, id, index) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/doc/get-part', {
       ai,
       id,
@@ -198,7 +208,7 @@ export async function callDocGetPart(ai, id, index) {
 }
 
 export async function callDocLearn(ai, file) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('ai', ai || '');
@@ -218,7 +228,7 @@ export async function callDocLearn(ai, file) {
 }
 
 export async function callDocList(ai, search, limit, offset) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/doc/list', {
       ai,
       search,
@@ -236,7 +246,7 @@ export async function callDocList(ai, search, limit, offset) {
 }
 
 export async function callDocListByIds(ai, ids) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/doc/list-by-ids', {
       ai,
       ids,
@@ -250,7 +260,7 @@ export async function callDocListByIds(ai, ids) {
 }
 
 export async function callDocListDigestingIds(ai, limit) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/doc/list-digesting-ids', {
       ai,
       limit,
@@ -264,7 +274,7 @@ export async function callDocListDigestingIds(ai, limit) {
 }
 
 export async function callLlmActive(type, name) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/llm/active', {
       type,
       name,
@@ -278,7 +288,7 @@ export async function callLlmActive(type, name) {
 }
 
 export async function callLlmConfig(name, type, protocol, options) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/llm/config', {
       name,
       type,
@@ -296,7 +306,7 @@ export async function callLlmConfig(name, type, protocol, options) {
 }
 
 export async function callLlmDelete(name) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/llm/delete', {
       name,
     });
@@ -308,7 +318,7 @@ export async function callLlmDelete(name) {
 }
 
 export async function callLlmEdit(oldName, name, protocol, options) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/llm/edit', {
       old_name: oldName,
       name,
@@ -326,7 +336,7 @@ export async function callLlmEdit(oldName, name, protocol, options) {
 }
 
 export async function callLlmList() {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/llm/list');
   } else {
     return await invoke('llm_list');
@@ -334,7 +344,7 @@ export async function callLlmList() {
 }
 
 export async function callLlmListActivedNames() {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/llm/list-actived-names');
   } else {
     return await invoke('llm_list_actived_names');
@@ -342,7 +352,7 @@ export async function callLlmListActivedNames() {
 }
 
 export async function callLlmTestChat(prompt, name, protocol, options, hooks) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.sse(
       '/llm/test-chat',
       {
@@ -365,7 +375,7 @@ export async function callLlmTestChat(prompt, name, protocol, options, hooks) {
 }
 
 export async function callMemStats(ai) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/mem/stats', {
       ai,
     });
@@ -377,7 +387,7 @@ export async function callMemStats(ai) {
 }
 
 export async function callMemVacuum(ai) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/mem/vacuum', {
       ai,
     });
@@ -389,7 +399,7 @@ export async function callMemVacuum(ai) {
 }
 
 export async function callSkillAdd(ai, toolId, trigger) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/skill/add', {
       ai,
       tool_id: toolId,
@@ -405,7 +415,7 @@ export async function callSkillAdd(ai, toolId, trigger) {
 }
 
 export async function callSkillAdds(ai, toolsetId) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/skill/adds', {
       ai,
       toolset_id: toolsetId,
@@ -419,7 +429,7 @@ export async function callSkillAdds(ai, toolsetId) {
 }
 
 export async function callSkillDelete(ai, id) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/skill/delete', {
       ai,
       id,
@@ -433,7 +443,7 @@ export async function callSkillDelete(ai, id) {
 }
 
 export async function callSkillList(ai, search, limit, offset) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/skill/list', {
       ai,
       search,
@@ -451,7 +461,7 @@ export async function callSkillList(ai, search, limit, offset) {
 }
 
 export async function callToolDeleteByToolset(toolsetId) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/tool/delete-by-toolset', {
       toolset_id: toolsetId,
     });
@@ -463,7 +473,7 @@ export async function callToolDeleteByToolset(toolsetId) {
 }
 
 export async function callToolGet(id) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/tool/get', {
       id,
     });
@@ -475,7 +485,7 @@ export async function callToolGet(id) {
 }
 
 export async function callToolImport(type, title, options) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/tool/import', {
       type,
       title,
@@ -491,7 +501,7 @@ export async function callToolImport(type, title, options) {
 }
 
 export async function callToolListByIds(ids) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/tool/list-by-ids', {
       ids,
     });
@@ -503,7 +513,7 @@ export async function callToolListByIds(ids) {
 }
 
 export async function callToolListToolsets() {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/tool/list-toolsets');
   } else {
     return await invoke('tool_list_toolsets');
@@ -511,7 +521,7 @@ export async function callToolListToolsets() {
 }
 
 export async function callToolParse(type, options) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/tool/parse', {
       type,
       options,
@@ -525,7 +535,7 @@ export async function callToolParse(type, options) {
 }
 
 export async function callToolQueryByToolset(toolsetId) {
-  if (baseUrl) {
+  if (await getAppConfigRemoteUrl()) {
     return await api.post('/tool/query-by-toolset', {
       toolset_id: toolsetId,
     });

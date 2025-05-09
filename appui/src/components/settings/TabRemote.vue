@@ -1,5 +1,6 @@
 <script setup>
 import api from '@/api';
+import { callAppGetRemoteUrl, callAppSetRemote } from '@/call';
 import SettingsGroup from '@/components/settings/SettingsGroup.vue';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { ElMessageBox } from 'element-plus';
@@ -11,23 +12,21 @@ const { t } = useI18n();
 
 const state = reactive({
   remoteOn: false,
-  remoteBaseUrl: '',
+  remoteUrl: '',
   remotePassword: '',
 
-  requestingTestSave: false,
+  requestingTestRemoteAndSave: false,
 });
 
-const onTestSave = async () => {
-  state.requestingTestSave = true;
+const onTestRemoteAndSave = async () => {
+  state.requestingTestRemoteAndSave = true;
 
   try {
-    localStorage.setItem('aiter-base-url', state.remoteBaseUrl);
-    localStorage.setItem('aiter-token', sha256(state.remotePassword));
+    await callAppSetRemote(state.remoteUrl, sha256(state.remotePassword));
 
     const version = await api.get('/version');
     if (!version) {
-      localStorage.removeItem('aiter-base-url');
-      localStorage.removeItem('aiter-token');
+      await callAppSetRemote();
     } else {
       ElMessageBox.confirm(t('message.success_access_to_remote', { version }), t('label.require_restart'), {
         confirmButtonText: t('label.confirm'),
@@ -36,26 +35,28 @@ const onTestSave = async () => {
         type: 'info',
       })
         .then(relaunch)
-        .catch(() => {});
+        .catch(() => {
+          callAppSetRemote();
+        });
     }
   } finally {
-    state.requestingTestSave = false;
+    state.requestingTestRemoteAndSave = false;
   }
 };
 
 onMounted(async () => {
-  const baseUrl = localStorage.getItem('aiter-base-url');
+  const remoteUrl = await callAppGetRemoteUrl();
 
-  state.remoteOn = !!baseUrl;
-  state.remoteBaseUrl = baseUrl || '';
+  state.remoteOn = !!remoteUrl;
+  state.remoteUrl = remoteUrl || 'http://localhost:6868';
 });
 
 watch(
   () => state.remoteOn,
-  (val) => {
-    if (!val && localStorage.getItem('aiter-base-url')) {
-      localStorage.removeItem('aiter-base-url');
-      localStorage.removeItem('aiter-token');
+  async (val) => {
+    const remoteUrl = await callAppGetRemoteUrl();
+    if (!val && remoteUrl) {
+      await callAppSetRemote();
 
       ElMessageBox.confirm(t('message.turn_off_remote'), t('label.require_restart'), {
         confirmButtonText: t('label.confirm'),
@@ -84,7 +85,7 @@ watch(
           <div class="flex items-center">
             <el-form class="w-full" label-position="top">
               <el-form-item :label="$t('label.settings_titles.remote_base_url')">
-                <el-input v-model="state.remoteBaseUrl" placeholder="http://localhost:6868" />
+                <el-input v-model="state.remoteUrl" placeholder="e.g. http://localhost:6868" />
               </el-form-item>
 
               <el-form-item :label="$t('label.settings_titles.remote_password')">
@@ -94,8 +95,12 @@ watch(
           </div>
 
           <div class="flex items-center">
-            <el-button type="primary" :disabled="!state.remoteBaseUrl || state.requestingTestSave" @click="onTestSave">
-              <template v-if="state.requestingTestSave">
+            <el-button
+              type="primary"
+              :disabled="!state.remoteUrl || state.requestingTestRemoteAndSave"
+              @click="onTestRemoteAndSave"
+            >
+              <template v-if="state.requestingTestRemoteAndSave">
                 <el-icon class="rotating el-icon--left"><i class="ri-loader-4-line"></i></el-icon>
               </template>
               <template v-else>

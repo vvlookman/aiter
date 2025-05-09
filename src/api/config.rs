@@ -1,13 +1,19 @@
 use std::str::FromStr;
 
-use crate::{db, error::AiterResult};
+use crate::{db, error::AiterResult, AiterError};
 
 pub async fn get(key: &str) -> AiterResult<Option<String>> {
-    let config_key = db::core::config::ConfigKey::from_str(key)?;
-    db::core::config::get(&config_key).await
+    if let Ok(config_key) = db::core::config::ConfigKey::from_str(key) {
+        db::core::config::get(&config_key).await
+    } else {
+        Err(AiterError::Invalid(format!("Key '{key}' is invalid")))
+    }
 }
 
 pub async fn set(key: &str, value: &str) -> AiterResult<()> {
-    let config_key = db::core::config::ConfigKey::from_str(key)?;
-    db::core::config::set(&config_key, value).await
+    if let Ok(config_key) = db::core::config::ConfigKey::from_str(key) {
+        db::core::config::set(&config_key, value).await
+    } else {
+        Err(AiterError::Invalid(format!("Key '{key}' is invalid")))
+    }
 }
