@@ -17,7 +17,7 @@ pub async fn retrieve_doc_implicit(
     method: &RetrieveMethod,
     mem_path: &Path,
     question: &str,
-    related_questions: &[String],
+    related_queries: &[String],
     _deep: bool,
 ) -> AiterResult<Vec<String>> {
     let mut content_tuples: RetrievedContents = vec![];
@@ -30,7 +30,7 @@ pub async fn retrieve_doc_implicit(
     let similarity_sig = minhash(question, signature_dims, &tokenizer)?;
 
     let all_questions: HashSet<String> = std::iter::once(question.to_string())
-        .chain(related_questions.iter().cloned())
+        .chain(related_queries.iter().cloned())
         .collect();
 
     let mut handles: Vec<JoinHandle<AiterResult<RetrievedContents>>> = vec![];
@@ -84,7 +84,7 @@ pub async fn retrieve_doc_frag(
     method: &RetrieveMethod,
     mem_path: &Path,
     question: &str,
-    related_questions: &[String],
+    related_queries: &[String],
     deep: bool,
 ) -> AiterResult<Vec<String>> {
     let mut content_tuples: RetrievedContents = vec![];
@@ -97,7 +97,7 @@ pub async fn retrieve_doc_frag(
     let similarity_sig = minhash(question, signature_dims, &tokenizer)?;
 
     let all_questions: HashSet<String> = std::iter::once(question.to_string())
-        .chain(related_questions.iter().cloned())
+        .chain(related_queries.iter().cloned())
         .collect();
 
     let mut handles: Vec<JoinHandle<AiterResult<RetrievedContents>>> = vec![];
@@ -152,7 +152,7 @@ pub async fn retrieve_doc_knl(
     method: &RetrieveMethod,
     mem_path: &Path,
     question: &str,
-    related_questions: &[String],
+    related_queries: &[String],
     deep: bool,
 ) -> AiterResult<Vec<String>> {
     let mut content_tuples: RetrievedContents = vec![];
@@ -165,7 +165,7 @@ pub async fn retrieve_doc_knl(
     let similarity_sig = minhash(question, signature_dims, &tokenizer)?;
 
     let all_questions: HashSet<String> = std::iter::once(question.to_string())
-        .chain(related_questions.iter().cloned())
+        .chain(related_queries.iter().cloned())
         .collect();
 
     let mut handles: Vec<JoinHandle<AiterResult<RetrievedContents>>> = vec![];

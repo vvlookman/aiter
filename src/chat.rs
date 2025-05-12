@@ -19,7 +19,7 @@ use crate::{
     llm::{
         prompt::{
             generate::{make_answer_by_candidates_prompt, make_no_answer_prompt},
-            intent::{make_break_question_prompt, make_simplify_questions_prompt},
+            intent::{make_extract_queries_prompt, make_simplify_queries_prompt},
         },
         ChatCompletionOptions, ChatEvent, ChatFunction, ChatMessage, Role,
     },
@@ -74,12 +74,12 @@ pub async fn chat_step(
         .map(|m| m.content.clone())
         .collect::<Vec<_>>();
 
-    let mut related_questions: HashSet<String> = HashSet::new();
+    let mut related_queries: HashSet<String> = HashSet::new();
     let mut candidates: HashSet<String> = HashSet::new();
 
-    // Break down the question into sub-questions
+    // Extract queries from user's question
     {
-        let prompt = make_break_question_prompt(question, &history_questions);
+        let prompt = make_extract_queries_prompt(question, &history_questions);
         let json_text = extract_code_block(
             &api::llm::chat_completion(
                 &prompt,
@@ -91,14 +91,10 @@ pub async fn chat_step(
             .await?
             .content,
         );
-        if let Ok(sub_questions) = serde_json::from_str::<Vec<String>>(&json_text) {
-            if !sub_questions.is_empty() {
-                log::debug!(
-                    "Question [{}] is broken down into: {:?}",
-                    &question,
-                    &sub_questions
-                );
-                related_questions.extend(sub_questions);
+        if let Ok(queries) = serde_json::from_str::<Vec<String>>(&json_text) {
+            if !queries.is_empty() {
+                log::debug!("Question [{}] need queries: {:?}", &question, &queries);
+                related_queries.extend(queries);
             }
         }
     }
@@ -109,10 +105,7 @@ pub async fn chat_step(
             &RetrieveMethod::Fts,
             mem_path,
             question,
-            &related_questions
-                .clone()
-                .into_iter()
-                .collect::<Vec<String>>(),
+            &related_queries.clone().into_iter().collect::<Vec<String>>(),
             chat_options.deep,
         )
         .await?;
@@ -121,13 +114,13 @@ pub async fn chat_step(
 
     // Try retrieve contents by full text search again if no content retrieved, simplify all questions before that
     if candidates.is_empty() {
-        let not_simplify_questions: Vec<String> =
-            HashSet::<String>::from_iter(related_questions.clone())
+        let not_simplify_queries: Vec<String> =
+            HashSet::<String>::from_iter(related_queries.clone())
                 .into_iter()
                 .chain(std::iter::once(question.to_string()))
                 .collect();
 
-        let prompt = make_simplify_questions_prompt(&not_simplify_questions);
+        let prompt = make_simplify_queries_prompt(&not_simplify_queries);
         let json_text = extract_code_block(
             &api::llm::chat_completion(
                 &prompt,
@@ -139,14 +132,14 @@ pub async fn chat_step(
             .await?
             .content,
         );
-        if let Ok(simple_questions) = serde_json::from_str::<Vec<String>>(&json_text) {
-            if !simple_questions.is_empty() {
+        if let Ok(simplified_queries) = serde_json::from_str::<Vec<String>>(&json_text) {
+            if !simplified_queries.is_empty() {
                 log::debug!(
-                    "Questions {:?} are simplified to: {:?}",
-                    &not_simplify_questions,
-                    &simple_questions
+                    "Queries {:?} are simplified to: {:?}",
+                    &not_simplify_queries,
+                    &simplified_queries
                 );
-                related_questions.extend(simple_questions);
+                related_queries.extend(simplified_queries);
 
                 // Retrieve contents by full text search again
                 {
@@ -154,10 +147,7 @@ pub async fn chat_step(
                         &RetrieveMethod::Fts,
                         mem_path,
                         question,
-                        &related_questions
-                            .clone()
-                            .into_iter()
-                            .collect::<Vec<String>>(),
+                        &related_queries.clone().into_iter().collect::<Vec<String>>(),
                         chat_options.deep,
                     )
                     .await?;
@@ -167,8 +157,8 @@ pub async fn chat_step(
         }
     }
 
-    let related_questions_vec: Vec<String> = related_questions.into_iter().collect();
-    log::debug!("All related questions: {:?}", &related_questions_vec);
+    let related_queries_vec: Vec<String> = related_queries.into_iter().collect();
+    log::debug!("All related queries: {:?}", &related_queries_vec);
 
     // Retrieve contents by vector match
     {
@@ -176,7 +166,7 @@ pub async fn chat_step(
             &RetrieveMethod::Vec,
             mem_path,
             question,
-            &related_questions_vec,
+            &related_queries_vec,
             chat_options.deep,
         )
         .await?;
@@ -190,14 +180,14 @@ pub async fn chat_step(
     {
         let mem_path = mem_path.to_path_buf();
         let question = question.to_string();
-        let related_questions_vec = related_questions_vec.clone();
+        let related_queries_vec = related_queries_vec.clone();
         let deep = chat_options.deep;
         skill_retrievers.push(tokio::spawn(async move {
             retrieve_skill(
                 &RetrieveMethod::Vec,
                 &mem_path,
                 &question,
-                &related_questions_vec,
+                &related_queries_vec,
                 deep,
             )
             .await
@@ -378,7 +368,7 @@ async fn retrieve_contents(
     method: &RetrieveMethod,
     mem_path: &Path,
     question: &str,
-    related_questions: &[String],
+    related_queries: &[String],
     deep: bool,
 ) -> AiterResult<Vec<String>> {
     let mut content_retrievers: Vec<JoinHandle<AiterResult<Vec<String>>>> = vec![];
@@ -387,9 +377,9 @@ async fn retrieve_contents(
         let method = method.clone();
         let mem_path = mem_path.to_path_buf();
         let question = question.to_string();
-        let related_questions = related_questions.to_vec();
+        let related_queries = related_queries.to_vec();
         content_retrievers.push(tokio::spawn(async move {
-            retrieve_doc_implicit(&method, &mem_path, &question, &related_questions, deep).await
+            retrieve_doc_implicit(&method, &mem_path, &question, &related_queries, deep).await
         }));
     }
 
@@ -397,9 +387,9 @@ async fn retrieve_contents(
         let method = method.clone();
         let mem_path = mem_path.to_path_buf();
         let question = question.to_string();
-        let related_questions = related_questions.to_vec();
+        let related_queries = related_queries.to_vec();
         content_retrievers.push(tokio::spawn(async move {
-            retrieve_doc_frag(&method, &mem_path, &question, &related_questions, deep).await
+            retrieve_doc_frag(&method, &mem_path, &question, &related_queries, deep).await
         }));
     }
 
@@ -407,9 +397,9 @@ async fn retrieve_contents(
         let method = method.clone();
         let mem_path = mem_path.to_path_buf();
         let question = question.to_string();
-        let related_questions = related_questions.to_vec();
+        let related_queries = related_queries.to_vec();
         content_retrievers.push(tokio::spawn(async move {
-            retrieve_doc_knl(&method, &mem_path, &question, &related_questions, deep).await
+            retrieve_doc_knl(&method, &mem_path, &question, &related_queries, deep).await
         }));
     }
 

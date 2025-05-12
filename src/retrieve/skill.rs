@@ -12,7 +12,7 @@ pub async fn retrieve_skill(
     method: &RetrieveMethod,
     mem_path: &Path,
     question: &str,
-    related_questions: &[String],
+    related_queries: &[String],
     _deep: bool,
 ) -> AiterResult<Vec<db::mem::skill::SkillEntity>> {
     let mut skill_tuples: RetrievedSkills = vec![];
@@ -25,7 +25,7 @@ pub async fn retrieve_skill(
     let similarity_sig = minhash(question, signature_dims, &tokenizer)?;
 
     let all_questions: HashSet<String> = std::iter::once(question.to_string())
-        .chain(related_questions.iter().cloned())
+        .chain(related_queries.iter().cloned())
         .collect();
 
     let mut handles: Vec<JoinHandle<AiterResult<RetrievedSkills>>> = vec![];
