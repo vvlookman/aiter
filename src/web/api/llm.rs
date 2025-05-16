@@ -140,7 +140,6 @@ pub async fn test_chat(data: web::Json<LlmTestChatReqData>) -> impl Responder {
                         api::llm::ChatCompletionEvent::CallToolEnd(_task_id, _result, _time) => {}
                         api::llm::ChatCompletionEvent::CallToolFail(_task_id, _error, _time) => {}
                         api::llm::ChatCompletionEvent::Content(delta) => {
-                            #[allow(clippy::collapsible_if)]
                             if !has_content && has_reasoning_content {
                                 if sse_event_sender
                                     .send(sse::Data::new("\n\n").into())

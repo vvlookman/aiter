@@ -64,8 +64,8 @@ ulid = "1.1.4"
 unicode-segmentation = "1.12.0"
 url = "2.5.4"
 
-
 [lints.clippy]
+collapsible_if = "allow"
 collapsible_else_if = "allow"
 literal_string_with_formatting_args = "allow"
 

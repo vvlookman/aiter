@@ -117,7 +117,6 @@ pub async fn llm_test_chat(
                         api::llm::ChatCompletionEvent::CallToolEnd(_task_id, _result, _time) => {}
                         api::llm::ChatCompletionEvent::CallToolFail(_task_id, _error, _time) => {}
                         api::llm::ChatCompletionEvent::Content(delta) => {
-                            #[allow(clippy::collapsible_if)]
                             if !has_content && has_reasoning_content {
                                 if channel.send("\n\n".to_string()).is_err() {
                                     break;
