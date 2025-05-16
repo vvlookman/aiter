@@ -1,12 +1,11 @@
 use std::io::{stdout, Write};
 
 use aiter::{
-    api::llm::{ChatCompletionOptions, ChatEvent},
+    api::llm::{ChatCompletionEvent, ChatCompletionOptions, ChatCompletionStream},
     error::AiterResult,
     *,
 };
 use colored::Colorize;
-use tokio::sync::mpsc;
 
 use crate::cli;
 
@@ -36,8 +35,6 @@ impl LlmTestCommand {
             return;
         }
 
-        let (event_sender, mut event_receiver) = mpsc::channel::<ChatEvent>(CHANNEL_BUFFER_DEFAULT);
-
         let mut chat_completion_options = ChatCompletionOptions::default();
         let llm_options = VecOptions(&self.llm_options);
         if let Some(temperature_str) = llm_options.get("temperature") {
@@ -49,81 +46,71 @@ impl LlmTestCommand {
         let r#type = self.r#type.clone();
         let prompt = self.prompt.clone();
 
-        let handle = tokio::spawn(async move {
-            let result: AiterResult<()> = match r#type.as_str() {
-                "chat" => {
-                    match api::llm::chat_completion(
-                        &prompt,
-                        &[],
-                        &chat_completion_options,
-                        None,
-                        Some(event_sender),
-                    )
-                    .await
-                    {
-                        Ok(_) => Ok(()),
-                        Err(err) => Err(err),
+        let result: AiterResult<ChatCompletionStream> = match r#type.as_str() {
+            "chat" => {
+                api::llm::stream_chat_completion(&prompt, &[], &chat_completion_options, None).await
+            }
+            "reasoning" => match api::llm::get_actived_name("reasoning").await {
+                Ok(llm_name) => {
+                    if llm_name.is_some() {
+                        api::llm::stream_chat_completion(
+                            &prompt,
+                            &[],
+                            &chat_completion_options,
+                            llm_name.as_deref(),
+                        )
+                        .await
+                    } else {
+                        Err(error::AiterError::NotExists(
+                            "Reasoning LLM not exists".to_string(),
+                        ))
                     }
                 }
-                "reasoning" => match api::llm::get_actived_name("reasoning").await {
-                    Ok(llm_name) => {
-                        if llm_name.is_some() {
-                            match api::llm::chat_completion(
-                                &prompt,
-                                &[],
-                                &chat_completion_options,
-                                llm_name.as_deref(),
-                                Some(event_sender),
-                            )
-                            .await
-                            {
-                                Ok(_) => Ok(()),
-                                Err(err) => Err(err),
+                Err(err) => Err(err),
+            },
+            _ => Err(error::AiterError::Invalid(format!(
+                "Invalid LLM type: {}",
+                r#type
+            ))),
+        };
+
+        match result {
+            Ok(mut stream) => {
+                let mut has_content = false;
+                let mut has_reasoning_content = false;
+
+                while let Some(event) = stream.next().await {
+                    match event {
+                        ChatCompletionEvent::CallToolStart(_task) => {}
+                        ChatCompletionEvent::CallToolEnd(_task_id, _result, _time) => {}
+                        ChatCompletionEvent::CallToolFail(_task_id, _error, _time) => {}
+                        ChatCompletionEvent::Content(delta) => {
+                            if !has_content && has_reasoning_content {
+                                print!("\n\n");
+                                stdout().flush().unwrap();
                             }
-                        } else {
-                            Err(error::AiterError::NotExists(
-                                "Reasoning LLM not exists".to_string(),
-                            ))
+
+                            has_content = true;
+                            print!("{}", delta);
+                            stdout().flush().unwrap();
+                        }
+                        ChatCompletionEvent::ReasoningContent(delta) => {
+                            has_reasoning_content = true;
+                            print!("{}", delta.bright_black());
+                            stdout().flush().unwrap();
+                        }
+                        ChatCompletionEvent::Error(err) => {
+                            println!("{}", err.to_string().red());
+                            break;
                         }
                     }
-                    Err(err) => Err(err),
-                },
-                _ => Err(error::AiterError::Invalid(format!(
-                    "Invalid LLM type: {}",
-                    r#type
-                ))),
-            };
+                }
 
-            if let Err(err) = result {
+                println!();
+            }
+            Err(err) => {
                 println!("{}", err.to_string().red());
             }
-        });
-
-        while let Some(event) = event_receiver.recv().await {
-            match event {
-                ChatEvent::StreamStart => {}
-                ChatEvent::CallToolStart(_task) => {}
-                ChatEvent::CallToolEnd(_task_id, _result, _time) => {}
-                ChatEvent::CallToolError(_task_id, _error) => {}
-                ChatEvent::ReasoningStart => {}
-                ChatEvent::ReasoningContent(delta) => {
-                    print!("{}", delta.bright_black());
-                    stdout().flush().unwrap();
-                }
-                ChatEvent::ReasoningEnd => {
-                    print!("\n\n");
-                    stdout().flush().unwrap();
-                }
-                ChatEvent::StreamContent(delta) => {
-                    print!("{}", delta);
-                    stdout().flush().unwrap();
-                }
-                ChatEvent::StreamEnd => {
-                    println!();
-                }
-            }
         }
-
-        let _ = handle.await;
     }
 }

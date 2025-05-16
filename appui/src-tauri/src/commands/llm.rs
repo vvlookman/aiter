@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use aiter::{
     api,
     error::{AiterError, AiterResult},
-    CHANNEL_BUFFER_DEFAULT,
 };
-use tokio::sync::mpsc;
 use ulid::Ulid;
 
 use crate::AppState;
@@ -36,10 +34,10 @@ pub async fn llm_config(
 
     api::llm::config(name, r#type, protocol, &options).await?;
 
-    if let Some(saved) = api::llm::get_by_name(&name).await? {
+    if let Some(saved) = api::llm::get_by_name(name).await? {
         Ok(Some(saved))
     } else {
-        Err(AiterError::NotExists(format!("LLM '{}' not exists", &name)).into())
+        Err(AiterError::NotExists(format!("LLM '{}' not exists", name)))
     }
 }
 
@@ -67,10 +65,10 @@ pub async fn llm_edit(
         api::llm::rename(old_name, name).await?;
     }
 
-    if let Some(saved) = api::llm::get_by_name(&name).await? {
+    if let Some(saved) = api::llm::get_by_name(name).await? {
         Ok(Some(saved))
     } else {
-        Err(AiterError::NotExists(format!("LLM '{}' not exists", &name)).into())
+        Err(AiterError::NotExists(format!("LLM '{}' not exists", name)))
     }
 }
 
@@ -87,73 +85,82 @@ pub async fn llm_list_actived_names() -> AiterResult<HashMap<String, String>> {
 #[tauri::command]
 pub async fn llm_test_chat(
     prompt: &str,
+    exchange: &str,
     name: &str,
     protocol: &str,
     options: HashMap<String, String>,
     channel: tauri::ipc::Channel<String>,
     state: tauri::State<'_, AppState>,
 ) -> AiterResult<()> {
-    let (event_sender, mut event_receiver) =
-        mpsc::channel::<api::llm::ChatEvent>(CHANNEL_BUFFER_DEFAULT);
-
-    let exchange = Ulid::new().to_string();
-    state
-        .chat_event_senders
-        .insert(exchange.clone(), event_sender.clone());
-
-    tokio::spawn(async move {
-        while let Some(event) = event_receiver.recv().await {
-            match event {
-                api::llm::ChatEvent::StreamStart => {}
-                api::llm::ChatEvent::CallToolStart(_task) => {}
-                api::llm::ChatEvent::CallToolEnd(_task_id, _result, _time) => {}
-                api::llm::ChatEvent::CallToolError(_task_id, _error) => {}
-                api::llm::ChatEvent::ReasoningStart => {}
-                api::llm::ChatEvent::ReasoningContent(delta) => {
-                    if channel.send(delta).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::ReasoningEnd => {
-                    if channel.send("\n\n".to_string()).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::StreamContent(delta) => {
-                    if channel.send(delta).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::StreamEnd => {
-                    break;
-                }
-            }
-        }
-        event_receiver.close();
-    });
-
     let name = name.to_string();
     let prompt = prompt.to_string();
     let protocol = protocol.to_string();
     let options = options.clone();
 
+    let exchange = exchange.to_string();
+    let chat_exchanges = state.chat_exchanges.clone();
+
     let handle = tokio::spawn(async move {
-        api::llm::test_chat(&prompt, &name, &protocol, &options, Some(event_sender)).await
+        chat_exchanges.insert(exchange.to_string());
+
+        let result = match api::llm::stream_test_chat_completion(
+            &prompt, &name, &protocol, &options,
+        )
+        .await
+        {
+            Ok(mut stream) => {
+                let mut has_content = false;
+                let mut has_reasoning_content = false;
+
+                while let Some(event) = stream.next().await {
+                    match event {
+                        api::llm::ChatCompletionEvent::CallToolStart(_task) => {}
+                        api::llm::ChatCompletionEvent::CallToolEnd(_task_id, _result, _time) => {}
+                        api::llm::ChatCompletionEvent::CallToolFail(_task_id, _error, _time) => {}
+                        api::llm::ChatCompletionEvent::Content(delta) => {
+                            #[allow(clippy::collapsible_if)]
+                            if !has_content && has_reasoning_content {
+                                if channel.send("\n\n".to_string()).is_err() {
+                                    break;
+                                }
+                            }
+
+                            has_content = true;
+                            if channel.send(delta).is_err() {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::ReasoningContent(delta) => {
+                            has_reasoning_content = true;
+                            if channel.send(delta).is_err() {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::Error(err) => {
+                            let _ = channel.send(err.to_string());
+                            break;
+                        }
+                    }
+
+                    // Aborted
+                    if !chat_exchanges.contains(&exchange) {
+                        break;
+                    }
+                }
+
+                Ok(())
+            }
+            Err(err) => Err(err),
+        };
+
+        chat_exchanges.remove(&exchange);
+
+        result
     });
 
-    let result = match handle.await {
+    match handle.await {
         Ok(Ok(_)) => Ok(()),
-        Ok(Err(err)) => {
-            if let AiterError::Interrupted(_) = err {
-                Ok(())
-            } else {
-                Err(err)
-            }
-        }
+        Ok(Err(err)) => Err(err),
         Err(err) => Err(err.into()),
-    };
-
-    state.chat_event_senders.remove(&exchange);
-
-    result
+    }
 }

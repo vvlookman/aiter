@@ -7,7 +7,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::{
-    sync::{mpsc::Sender, oneshot},
+    sync::{mpsc, mpsc::Sender, oneshot},
     task::JoinHandle,
 };
 use ulid::Ulid;
@@ -21,7 +21,8 @@ use crate::{
             generate::{make_answer_by_candidates_prompt, make_no_answer_prompt},
             intent::{make_extract_queries_prompt, make_simplify_queries_prompt},
         },
-        ChatCompletionOptions, ChatEvent, ChatFunction, ChatMessage, Role,
+        ChatCompletionEvent, ChatCompletionOptions, ChatCompletionStream, ChatFunction,
+        ChatMessage, Role,
     },
     retrieve::{
         doc::{retrieve_doc_frag, retrieve_doc_implicit, retrieve_doc_knl},
@@ -30,7 +31,7 @@ use crate::{
     },
     tool::{ahp::chat_function_from_ahp, mcp::chat_function_from_mcp, ToolType},
     utils::{datetime::now_iso_datetime_string, markdown::extract_code_block},
-    AiterError, VecOptions, LLM_CHAT_TEMPERATURE_STABLE,
+    VecOptions, CHANNEL_BUFFER_DEFAULT, LLM_CHAT_TEMPERATURE_STABLE,
 };
 
 #[derive(Default)]
@@ -53,21 +54,14 @@ pub struct ChatCallToolTask {
     pub parameters: HashMap<String, String>,
 }
 
-#[derive(Debug)]
-pub enum ChatResponseSource {
-    Llm,
-    Retrieve,
-}
-
-pub async fn chat_step(
+pub async fn stream_chat(
     mem_path: &Path,
     answer_rowid: i64,
     question: &str,
     chat_options: &ChatOptions,
     chat_history: &[ChatMessage],
     mem_write_event_sender: Sender<MemWriteEvent>,
-    chat_event_sender: Option<Sender<ChatEvent>>,
-) -> AiterResult<(ChatMessage, ChatResponseSource)> {
+) -> AiterResult<ChatCompletionStream> {
     let history_questions = chat_history
         .iter()
         .filter(|m| m.role == Role::User)
@@ -86,7 +80,6 @@ pub async fn chat_step(
                 &[],
                 &ChatCompletionOptions::default().with_temperature(LLM_CHAT_TEMPERATURE_STABLE),
                 chat_options.llm_for_chat.as_deref(),
-                None,
             )
             .await?
             .content,
@@ -127,7 +120,6 @@ pub async fn chat_step(
                 &[],
                 &ChatCompletionOptions::default().with_temperature(LLM_CHAT_TEMPERATURE_STABLE),
                 chat_options.llm_for_chat.as_deref(),
-                None,
             )
             .await?
             .content,
@@ -201,38 +193,10 @@ pub async fn chat_step(
         }
     }
 
-    let mut call_tool_tasks: Vec<(ChatCallToolTask, String, String)> = vec![];
+    // Prepare result stream
+    let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_DEFAULT);
+    let stream = ChatCompletionStream::new(receiver);
 
-    let skills = skills_map.values().cloned().collect::<Vec<_>>();
-    if !skills.is_empty() {
-        log::debug!("Skills: {:?}", skills);
-
-        call_tool_tasks = invoke_skills(
-            &skills,
-            question,
-            chat_history,
-            chat_options.llm_for_chat.as_deref(),
-            chat_event_sender.clone(),
-        )
-        .await?;
-
-        let skill_candidates: Vec<String> = call_tool_tasks
-            .iter()
-            .map(|(task, result, _time)| {
-                json!({
-                    "description": task.description,
-                    "parameters": task.parameters,
-                    "result": result,
-                })
-                .to_string()
-            })
-            .collect();
-        candidates.extend(skill_candidates);
-    }
-
-    log::debug!("Candidates: {:?}", candidates);
-
-    // Generate answer
     let mut chat_completion_options = ChatCompletionOptions::default();
     if chat_options.deep {
         chat_completion_options = chat_completion_options.with_enable_think(true);
@@ -255,55 +219,137 @@ pub async fn chat_step(
         chat_options.llm_for_chat.clone()
     };
 
-    let (result, source) = if !candidates.is_empty() {
-        let prompt = make_answer_by_candidates_prompt(
-            question,
-            &history_questions,
-            &candidates.into_iter().collect::<Vec<_>>(),
-            chat_options.strict,
-        );
+    let question = question.to_string();
+    let chat_history = chat_history.to_vec();
+    let history_questions = history_questions.clone();
+    let strict = chat_options.strict;
 
-        let result = api::llm::chat_completion(
-            &prompt,
-            chat_history,
-            &chat_completion_options,
-            llm_for_chat.as_deref(),
-            chat_event_sender,
-        )
-        .await;
+    tokio::spawn(async move {
+        let mut call_tool_end_tasks: Vec<(ChatCallToolTask, String, String)> = vec![];
+        let mut call_tool_fail_tasks: Vec<(ChatCallToolTask, String, String)> = vec![];
 
-        (result, ChatResponseSource::Retrieve)
-    } else {
-        if chat_options.strict {
-            let prompt = make_no_answer_prompt(question);
+        // Invoke skills
+        let skills = skills_map.values().cloned().collect::<Vec<_>>();
+        if !skills.is_empty() {
+            log::debug!("Skills: {:?}", skills);
 
-            let result = api::llm::chat_completion(
-                &prompt,
-                &[],
-                &chat_completion_options,
-                llm_for_chat.as_deref(),
-                chat_event_sender,
-            )
-            .await;
+            if let Ok(mut call_tool_stream) =
+                stream_invoke_skills(&skills, &question, &chat_history, llm_for_chat.as_deref())
+                    .await
+            {
+                let mut tasks_map: HashMap<String, ChatCallToolTask> = HashMap::new();
+                while let Some(event) = call_tool_stream.next().await {
+                    match event {
+                        ChatCompletionEvent::CallToolStart(ref task) => {
+                            tasks_map.insert(task.id.clone(), task.clone());
+                        }
+                        ChatCompletionEvent::CallToolEnd(ref task_id, ref result, ref time) => {
+                            if let Some(task) = tasks_map.get(task_id) {
+                                call_tool_end_tasks.push((
+                                    task.clone(),
+                                    result.to_string(),
+                                    time.to_string(),
+                                ));
+                            }
+                        }
+                        ChatCompletionEvent::CallToolFail(ref task_id, ref error, ref time) => {
+                            if let Some(task) = tasks_map.get(task_id) {
+                                call_tool_fail_tasks.push((
+                                    task.clone(),
+                                    error.to_string(),
+                                    time.to_string(),
+                                ));
+                            }
+                        }
+                        _ => {}
+                    }
 
-            (result, ChatResponseSource::Llm)
-        } else {
-            let result = api::llm::chat_completion(
-                question,
-                chat_history,
-                &chat_completion_options,
-                llm_for_chat.as_deref(),
-                chat_event_sender,
-            )
-            .await;
+                    let _ = sender.send(event).await;
+                }
+            }
 
-            (result, ChatResponseSource::Llm)
+            let skill_candidates: Vec<String> = call_tool_end_tasks
+                .iter()
+                .map(|(task, result, _time)| {
+                    json!({
+                        "description": task.description,
+                        "parameters": task.parameters,
+                        "result": result,
+                    })
+                    .to_string()
+                })
+                .collect();
+            candidates.extend(skill_candidates);
         }
-    };
 
-    match result {
-        Ok(message) => {
-            let call_tools = call_tool_tasks
+        log::debug!("Candidates: {:?}", candidates);
+
+        // Generate answer by candidates
+        let chat_stream = if !candidates.is_empty() {
+            let prompt = make_answer_by_candidates_prompt(
+                &question,
+                &history_questions,
+                &candidates.into_iter().collect::<Vec<_>>(),
+                strict,
+            );
+
+            api::llm::stream_chat_completion(
+                &prompt,
+                &chat_history,
+                &chat_completion_options,
+                llm_for_chat.as_deref(),
+            )
+            .await
+        } else {
+            if strict {
+                let prompt = make_no_answer_prompt(&question);
+
+                api::llm::stream_chat_completion(
+                    &prompt,
+                    &[],
+                    &chat_completion_options,
+                    llm_for_chat.as_deref(),
+                )
+                .await
+            } else {
+                api::llm::stream_chat_completion(
+                    &question,
+                    &chat_history,
+                    &chat_completion_options,
+                    llm_for_chat.as_deref(),
+                )
+                .await
+            }
+        };
+
+        let mut content = String::new();
+        let mut reasoning_content = String::new();
+
+        if let Ok(mut chat_stream) = chat_stream {
+            while let Some(event) = chat_stream.next().await {
+                match event {
+                    ChatCompletionEvent::Content(ref delta) => {
+                        content.push_str(delta);
+                    }
+                    ChatCompletionEvent::ReasoningContent(ref delta) => {
+                        reasoning_content.push_str(delta);
+                    }
+                    ChatCompletionEvent::Error(_) => {
+                        break;
+                    }
+                    _ => {}
+                }
+
+                // Abort if write to result stream fails
+                if sender.send(event).await.is_err() {
+                    break;
+                }
+            }
+        }
+
+        // Save to mem history
+        {
+            let call_tools_end = call_tool_end_tasks
                 .iter()
                 .map(|(task, _result, time)| {
                     json!({
@@ -312,56 +358,39 @@ pub async fn chat_step(
                     })
                 })
                 .collect::<Vec<_>>();
+            let call_tools_fail = call_tool_fail_tasks
+                .iter()
+                .map(|(task, error, time)| {
+                    json!({
+                        "task": task,
+                        "error": error,
+                        "time": time
+                    })
+                })
+                .collect::<Vec<_>>();
+            let call_tools = [call_tools_end, call_tools_fail].concat();
 
             let json_str = json!({
-                "content": message.content,
-                "reasoning": message.reasoning,
+                "content": content,
+                "reasoning": reasoning_content,
                 "call_tools": call_tools,
             })
             .to_string();
-
             {
                 let (resp_sender, resp_receiver) = oneshot::channel();
-                mem_write_event_sender
+                let _ = mem_write_event_sender
                     .send(MemWriteEvent::SetHistoryChatContent {
                         rowid: answer_rowid,
                         content: json_str,
                         resp_sender,
                     })
-                    .await?;
-                let _ = resp_receiver.await?;
+                    .await;
+                let _ = resp_receiver.await;
             }
-
-            Ok((message, source))
         }
-        Err(err) => {
-            match err {
-                AiterError::Interrupted(ref content) => {
-                    let (resp_sender, resp_receiver) = oneshot::channel();
-                    mem_write_event_sender
-                        .send(MemWriteEvent::SetHistoryChatContent {
-                            rowid: answer_rowid,
-                            content: content.clone(),
-                            resp_sender,
-                        })
-                        .await?;
-                    let _ = resp_receiver.await?;
-                }
-                _ => {
-                    let (resp_sender, resp_receiver) = oneshot::channel();
-                    mem_write_event_sender
-                        .send(MemWriteEvent::DeleteHistoryChat {
-                            rowid: answer_rowid,
-                            resp_sender,
-                        })
-                        .await?;
-                    let _ = resp_receiver.await?;
-                }
-            }
+    });
 
-            Err(err)
-        }
-    }
+    Ok(stream)
 }
 
 async fn retrieve_contents(
@@ -411,13 +440,12 @@ async fn retrieve_contents(
     Ok(candidates.into_iter().collect())
 }
 
-async fn invoke_skills(
+async fn stream_invoke_skills(
     skills: &[db::mem::skill::SkillEntity],
     question: &str,
     chat_history: &[ChatMessage],
     chat_llm_name: Option<&str>,
-    chat_event_sender: Option<Sender<ChatEvent>>,
-) -> AiterResult<Vec<(ChatCallToolTask, String, String)>> {
+) -> AiterResult<ChatCompletionStream> {
     let mut functions: Vec<ChatFunction> = vec![];
     for skill in skills {
         if let Some(tool) = api::tool::get(&skill.tool_id).await? {
@@ -437,9 +465,9 @@ async fn invoke_skills(
         api::llm::chat_function_calls(&functions, question, chat_history, chat_llm_name).await?;
     log::debug!("Function calls: {:?}", function_calls);
 
-    let mut calls: HashMap<String, ChatCallToolTask> = HashMap::new();
-    let mut call_handles: HashMap<String, JoinHandle<AiterResult<(String, String)>>> =
-        HashMap::new();
+    let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_DEFAULT);
+    let stream = ChatCompletionStream::new(receiver);
+
     for function_call in function_calls {
         let tool_id = function_call.name;
         let options = function_call.arguments;
@@ -457,80 +485,46 @@ async fn invoke_skills(
                 }
             }
 
-            let task_id = Ulid::new().to_string();
-
+            let sender = sender.clone();
             let task = ChatCallToolTask {
-                id: task_id.clone(),
+                id: Ulid::new().to_string(),
                 tool_id: tool_id.clone(),
                 description,
                 parameters,
             };
 
-            calls.insert(task_id.clone(), task.clone());
+            tokio::spawn(async move {
+                let _ = sender
+                    .send(ChatCompletionEvent::CallToolStart(task.clone()))
+                    .await;
 
-            if let Some(chat_event_sender) = &chat_event_sender {
-                chat_event_sender
-                    .send(ChatEvent::CallToolStart(task.clone()))
-                    .await?;
-            }
-
-            call_handles.insert(
-                task_id.clone(),
-                tokio::spawn(async move {
-                    let result = api::tool::run(&tool_id, &options).await?;
-                    let time = now_iso_datetime_string();
-
-                    Ok((result, time))
-                }),
-            );
-        }
-    }
-
-    let mut call_results = vec![];
-
-    for (task_id, handle) in call_handles {
-        match handle.await {
-            Ok(handle_result) => match handle_result {
-                Ok((result, time)) => {
-                    if let Some(task) = calls.get(&task_id) {
-                        call_results.push((task.clone(), result.clone(), time.clone()));
-                    }
-
-                    if let Some(chat_event_sender) = &chat_event_sender {
-                        let _ = chat_event_sender
-                            .send(ChatEvent::CallToolEnd(task_id.to_string(), result, time))
-                            .await;
-                    }
-                }
-                Err(err) => {
-                    if let Some(chat_event_sender) = &chat_event_sender {
-                        let _ = chat_event_sender
-                            .send(ChatEvent::CallToolError(
-                                task_id.to_string(),
-                                err.to_string(),
+                match api::tool::run(&tool_id, &options).await {
+                    Ok(result) => {
+                        let _ = sender
+                            .send(ChatCompletionEvent::CallToolEnd(
+                                task.id.to_string(),
+                                result,
+                                now_iso_datetime_string(),
                             ))
                             .await;
                     }
+                    Err(err) => {
+                        let _ = sender
+                            .send(ChatCompletionEvent::CallToolFail(
+                                task.id.to_string(),
+                                err.to_string(),
+                                now_iso_datetime_string(),
+                            ))
+                            .await;
 
-                    log::error!("Call function failed: {:?}", err);
-                }
-            },
-            Err(err) => {
-                if let Some(chat_event_sender) = &chat_event_sender {
-                    let _ = chat_event_sender
-                        .send(ChatEvent::CallToolError(
-                            task_id.to_string(),
-                            err.to_string(),
-                        ))
-                        .await;
-                }
-
-                log::error!("Call function failed: {:?}", err);
-            }
+                        log::error!("Call function failed: {:?}", err);
+                    }
+                };
+            });
         }
     }
 
-    Ok(call_results)
+    Ok(stream)
 }
 
 impl ChatOptions {

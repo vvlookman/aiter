@@ -430,7 +430,6 @@ impl DocDigestor {
                                                             LLM_CHAT_TEMPERATURE_STABLE,
                                                         ),
                                                     None,
-                                                    None,
                                                 )
                                                 .await?
                                                 .content,
@@ -653,7 +652,6 @@ impl DocDigestor {
                                     &[],
                                     &ChatCompletionOptions::default()
                                         .with_temperature(LLM_CHAT_TEMPERATURE_STABLE),
-                                    None,
                                     None,
                                 )
                                 .await?

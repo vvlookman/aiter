@@ -1,11 +1,12 @@
 use std::{collections::HashMap, str::FromStr};
 
-use tokio::sync::mpsc::Sender;
-
 use crate::{
     db::mem::history_chat::HistoryChatEntity,
     error::AiterResult,
-    llm::{ChatCompletionOptions, ChatEvent, ChatFunction, ChatFunctionCall, ChatMessage, Role},
+    llm::{
+        ChatCompletionOptions, ChatCompletionStream, ChatFunction, ChatFunctionCall, ChatMessage,
+        Role,
+    },
 };
 
 pub mod open_ai;
@@ -15,7 +16,6 @@ pub trait ChatProvider {
         &self,
         messages: &[ChatMessage],
         options: &ChatCompletionOptions,
-        chat_event_sender: Option<Sender<ChatEvent>>,
     ) -> impl std::future::Future<Output = AiterResult<ChatMessage>> + Send;
 
     fn chat_function_calls(
@@ -23,6 +23,12 @@ pub trait ChatProvider {
         messages: &[ChatMessage],
         functions: &[ChatFunction],
     ) -> impl std::future::Future<Output = AiterResult<Vec<ChatFunctionCall>>> + Send;
+
+    fn stream_chat_completion(
+        &self,
+        messages: &[ChatMessage],
+        options: &ChatCompletionOptions,
+    ) -> impl std::future::Future<Output = AiterResult<ChatCompletionStream>> + Send;
 }
 
 impl From<HistoryChatEntity> for ChatMessage {

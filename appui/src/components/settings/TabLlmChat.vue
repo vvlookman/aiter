@@ -1,5 +1,5 @@
 <script setup>
-import { callAppGetRemoteUrl, callLlmActive, callLlmDelete, callLlmEdit, callLlmTestChat } from '@/call';
+import { callAppGetRemoteUrl, callChatAbort, callLlmActive, callLlmDelete, callLlmEdit, callLlmTestChat } from '@/call';
 import AddChatLlmDialog from '@/components/settings/AddChatLlmDialog.vue';
 import SettingsMenuItem from '@/components/settings/SettingsMenuItem.vue';
 import { useLlmStore } from '@/stores/llm';
@@ -7,6 +7,7 @@ import { guessChatLlm } from '@/utils/llm';
 import { Channel } from '@tauri-apps/api/core';
 import { ClickOutside as vClickOutside } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { ulid } from 'ulid';
 import { computed, onMounted, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -18,6 +19,8 @@ const state = reactive({
   requestingDeleteLlmNames: [],
 
   currentName: '',
+  currentChatAbortCtrl: null,
+  currentExchange: null,
   currentIsSaving: false,
   currentIsTesting: false,
   currentIsTestingName: null,
@@ -108,10 +111,11 @@ const onSetCurrentAsDefault = async () => {
   llmStore.defaultChatLlmName = currentLlm.name;
 };
 
-const onTest = async () => {
+const onSendTest = async () => {
   state.currentIsTesting = true;
 
   try {
+    state.currentExchange = ulid();
     state.currentIsTestingName = state.currentName;
     state.currentTestContent = '';
     state.currentShowTestContent = true;
@@ -119,6 +123,10 @@ const onTest = async () => {
     let hooks;
     const remoteUrl = await callAppGetRemoteUrl();
     if (remoteUrl) {
+      const abortCallback = (abortCtrl) => {
+        state.currentChatAbortCtrl = abortCtrl;
+      };
+
       const eventCallback = (event) => {
         let { data } = event;
 
@@ -126,34 +134,17 @@ const onTest = async () => {
           return;
         }
 
-        if (state.currentIsTestingName !== state.currentName) {
-          state.currentShowTestContent = false;
-          return;
-        }
-
-        if (data.trim().length > 0) {
-          state.currentShowTestContent = true;
-        }
-
-        state.currentTestContent = state.currentTestContent + data;
+        processData(data);
       };
 
       hooks = {
+        abortCallback,
         eventCallback,
       };
     } else {
       const channel = new Channel();
       channel.onmessage = (data) => {
-        if (state.currentIsTestingName !== state.currentName) {
-          state.currentShowTestContent = false;
-          return;
-        }
-
-        if (data.trim().length > 0) {
-          state.currentShowTestContent = true;
-        }
-
-        state.currentTestContent = state.currentTestContent + data;
+        processData(data);
       };
 
       hooks = {
@@ -169,10 +160,44 @@ const onTest = async () => {
       model: currentLlm.model,
     };
 
-    await callLlmTestChat(t('message.who_are_you'), name, protocol, options, hooks);
+    await callLlmTestChat(t('message.who_are_you'), state.currentExchange, name, protocol, options, hooks);
   } finally {
+    state.currentChatAbortCtrl?.abort();
     state.currentIsTesting = false;
   }
+};
+
+const onStopTest = async () => {
+  let hooks;
+  const remoteUrl = await callAppGetRemoteUrl();
+  if (remoteUrl) {
+    hooks = {
+      chatAbortCtrl: state.currentChatAbortCtrl,
+    };
+  } else {
+    hooks = {
+      exchange: state.currentExchange,
+    };
+  }
+
+  await callChatAbort(hooks);
+
+  state.currentShowTestContent = false;
+  state.currentExchange = null;
+  state.currentIsTesting = false;
+};
+
+const processData = (data) => {
+  if (state.currentIsTestingName !== state.currentName) {
+    state.currentShowTestContent = false;
+    return;
+  }
+
+  if (data.trim().length > 0 && state.currentExchange) {
+    state.currentShowTestContent = true;
+  }
+
+  state.currentTestContent = state.currentTestContent + data;
 };
 
 const requestDeleteLlm = async (llm) => {
@@ -295,16 +320,7 @@ watch(
                   placement="bottom-end"
                 >
                   <template #reference>
-                    <el-button
-                      v-click-outside="
-                        () => {
-                          state.testAbortCtrl?.abort();
-                          state.currentShowTestContent = false;
-                        }
-                      "
-                      :disabled="state.currentIsTesting"
-                      @click="onTest"
-                    >
+                    <el-button v-click-outside="onStopTest" :disabled="state.currentIsTesting" @click="onSendTest">
                       <template v-if="state.currentIsTesting">
                         <el-icon class="rotating el-icon--left"><i class="ri-loader-4-line"></i></el-icon>
                       </template>

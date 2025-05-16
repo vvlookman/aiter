@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::json;
 use tokio::{sync::mpsc, time::Duration};
 
-use crate::{api, llm::ChatEvent, AiterError, CHANNEL_BUFFER_DEFAULT};
+use crate::{api, AiterError, CHANNEL_BUFFER_DEFAULT};
 
 #[derive(Deserialize, Debug)]
 struct LlmActiveReqData {
@@ -120,73 +120,75 @@ struct LlmTestChatReqData {
 
 #[post("/test-chat")]
 pub async fn test_chat(data: web::Json<LlmTestChatReqData>) -> impl Responder {
-    let (event_sender, mut event_receiver) = mpsc::channel::<ChatEvent>(CHANNEL_BUFFER_DEFAULT);
-    let (sse_event_sender, sse_event_receiver) =
-        mpsc::channel::<sse::Event>(CHANNEL_BUFFER_DEFAULT);
-
-    let sse_event_sender_1 = sse_event_sender.clone();
-    tokio::spawn(async move {
-        while let Some(event) = event_receiver.recv().await {
-            match event {
-                ChatEvent::StreamStart => {}
-                ChatEvent::CallToolStart(_task) => {}
-                ChatEvent::CallToolEnd(_task_id, _result, _time) => {}
-                ChatEvent::CallToolError(_task_id, _error) => {}
-                ChatEvent::ReasoningStart => {}
-                ChatEvent::ReasoningContent(delta) => {
-                    if sse_event_sender_1
-                        .send(sse::Data::new(delta).into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::ReasoningEnd => {
-                    if sse_event_sender_1
-                        .send(sse::Data::new("\n\n").into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::StreamContent(delta) => {
-                    if sse_event_sender_1
-                        .send(sse::Data::new(delta).into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::StreamEnd => {
-                    let _ = sse_event_sender_1
-                        .send(sse::Data::new("[DONE]").into())
-                        .await;
-                    break;
-                }
-            }
-        }
-    });
-
     let prompt = data.prompt.to_string();
     let name = data.name.to_string();
     let protocol = data.protocol.to_string();
     let options = data.options.clone();
 
-    let sse_event_sender_2 = sse_event_sender.clone();
-    tokio::spawn(async move {
-        if let Err(err) =
-            api::llm::test_chat(&prompt, &name, &protocol, &options, Some(event_sender)).await
-        {
-            let _ = sse_event_sender_2
-                .send(sse::Data::new(err.to_string()).into())
-                .await;
+    let (sse_event_sender, sse_event_receiver) =
+        mpsc::channel::<sse::Event>(CHANNEL_BUFFER_DEFAULT);
 
-            let _ = sse_event_sender_2
-                .send(sse::Data::new("[DONE]").into())
-                .await;
+    tokio::spawn(async move {
+        match api::llm::stream_test_chat_completion(&prompt, &name, &protocol, &options).await {
+            Ok(mut stream) => {
+                let mut has_content = false;
+                let mut has_reasoning_content = false;
+
+                while let Some(event) = stream.next().await {
+                    match event {
+                        api::llm::ChatCompletionEvent::CallToolStart(_task) => {}
+                        api::llm::ChatCompletionEvent::CallToolEnd(_task_id, _result, _time) => {}
+                        api::llm::ChatCompletionEvent::CallToolFail(_task_id, _error, _time) => {}
+                        api::llm::ChatCompletionEvent::Content(delta) => {
+                            #[allow(clippy::collapsible_if)]
+                            if !has_content && has_reasoning_content {
+                                if sse_event_sender
+                                    .send(sse::Data::new("\n\n").into())
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+
+                            has_content = true;
+                            if sse_event_sender
+                                .send(sse::Data::new(delta).into())
+                                .await
+                                .is_err()
+                            {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::ReasoningContent(delta) => {
+                            has_reasoning_content = true;
+                            if sse_event_sender
+                                .send(sse::Data::new(delta).into())
+                                .await
+                                .is_err()
+                            {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::Error(err) => {
+                            let _ = sse_event_sender
+                                .send(sse::Data::new(format!("\n{}", err)).into())
+                                .await;
+
+                            let _ = sse_event_sender.send(sse::Data::new("[DONE]").into()).await;
+                        }
+                    }
+                }
+
+                let _ = sse_event_sender.send(sse::Data::new("[DONE]").into()).await;
+            }
+            Err(err) => {
+                let _ = sse_event_sender
+                    .send(sse::Data::new(format!("\n{}", err)).into())
+                    .await;
+
+                let _ = sse_event_sender.send(sse::Data::new("[DONE]").into()).await;
+            }
         }
     });
 

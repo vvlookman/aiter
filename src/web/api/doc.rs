@@ -66,8 +66,8 @@ struct DocLearnReqForm {
 
 #[post("/learn")]
 pub async fn learn(
-    data: Data<AppState>,
     MultipartForm(form): MultipartForm<DocLearnReqForm>,
+    state: Data<AppState>,
 ) -> Result<impl Responder> {
     let ai = if form.ai.0.trim().is_empty() || form.ai.0.trim() == "~" {
         None
@@ -101,7 +101,7 @@ pub async fn learn(
             doc_id: read_result.doc_id.clone(),
         };
 
-        if let Err(err) = data.notify_digest_event_sender.send(event).await {
+        if let Err(err) = state.notify_digest_event_sender.send(event).await {
             return Err(AiterError::from(err).into());
         }
     }

@@ -1,14 +1,10 @@
-use aiter::{
-    api,
-    error::{AiterError, AiterResult},
-    CHANNEL_BUFFER_DEFAULT,
-};
+use aiter::{api, error::AiterResult};
 use serde_json::json;
-use tokio::sync::mpsc;
 
 use crate::{get_mem_write_event_sender, AppState};
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn chat(
     ai: Option<&str>,
     message: &str,
@@ -23,66 +19,6 @@ pub async fn chat(
     channel: tauri::ipc::Channel<String>,
     state: tauri::State<'_, AppState>,
 ) -> AiterResult<()> {
-    let (event_sender, mut event_receiver) =
-        mpsc::channel::<api::llm::ChatEvent>(CHANNEL_BUFFER_DEFAULT);
-
-    state
-        .chat_event_senders
-        .insert(exchange.to_string(), event_sender.clone());
-
-    tokio::spawn(async move {
-        while let Some(event) = event_receiver.recv().await {
-            match event {
-                api::llm::ChatEvent::StreamStart => {}
-                api::llm::ChatEvent::CallToolStart(task) => {
-                    let json_str = json!({ "call_tool_start": task }).to_string();
-                    if channel.send(json_str).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::CallToolEnd(task_id, _result, time) => {
-                    let json_str =
-                        json!({ "call_tool_end": { "id": task_id, "time": time } }).to_string();
-                    if channel.send(json_str).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::CallToolError(task_id, error) => {
-                    let json_str =
-                        json!({ "call_tool_error": { "id": task_id, "error": error } }).to_string();
-                    if channel.send(json_str).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::ReasoningStart => {}
-                api::llm::ChatEvent::ReasoningContent(content) => {
-                    let json_str = json!({ "reasoning": content }).to_string();
-                    if channel.send(json_str).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::ReasoningEnd => {
-                    let json_str = json!({ "reasoning": "\n\n" }).to_string();
-                    if channel.send(json_str).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::StreamContent(content) => {
-                    let json_str = json!({ "content": content}).to_string();
-                    if channel.send(json_str).is_err() {
-                        break;
-                    }
-                }
-                api::llm::ChatEvent::StreamEnd => {
-                    break;
-                }
-            }
-        }
-        event_receiver.close();
-    });
-
-    let mem_write_event_sender = get_mem_write_event_sender(ai).await?;
-
     let ai = ai.map(|s| s.to_string());
     let message = message.to_string();
     let chat_options = api::chat::ChatOptions::default()
@@ -95,44 +31,102 @@ pub async fn chat(
         .with_session(session.map(|s| s.to_string()))
         .with_strict(strict.unwrap_or(false));
 
+    let exchange = exchange.to_string();
+    let chat_exchanges = state.chat_exchanges.clone();
+    let mem_write_event_sender = get_mem_write_event_sender(ai.as_deref()).await?;
+
     let handle = tokio::spawn(async move {
-        api::chat::chat(
+        chat_exchanges.insert(exchange.to_string());
+
+        let result = match api::chat::chat(
             ai.as_deref(),
             &message,
             &chat_options,
             mem_write_event_sender,
-            Some(event_sender),
         )
         .await
+        {
+            Ok(mut stream) => {
+                let mut has_content = false;
+                let mut has_reasoning_content = false;
+
+                while let Some(event) = stream.next().await {
+                    match event {
+                        api::llm::ChatCompletionEvent::CallToolStart(task) => {
+                            let json_str = json!({ "call_tool_start": task }).to_string();
+                            if channel.send(json_str).is_err() {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::CallToolEnd(task_id, _result, time) => {
+                            let json_str =
+                                json!({ "call_tool_end": { "id": task_id, "time": time } })
+                                    .to_string();
+                            if channel.send(json_str).is_err() {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::CallToolFail(task_id, error, time) => {
+                            let json_str =
+                                json!({ "call_tool_fail": { "id": task_id, "error": error, "time": time } })
+                                    .to_string();
+                            if channel.send(json_str).is_err() {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::Content(content) => {
+                            if !has_content && has_reasoning_content {
+                                let json_str = json!({ "reasoning": "\n\n" }).to_string();
+                                if channel.send(json_str).is_err() {
+                                    break;
+                                }
+                            }
+
+                            has_content = true;
+                            let json_str = json!({ "content": content}).to_string();
+                            if channel.send(json_str).is_err() {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::ReasoningContent(content) => {
+                            has_reasoning_content = true;
+                            let json_str = json!({ "reasoning": content }).to_string();
+                            if channel.send(json_str).is_err() {
+                                break;
+                            }
+                        }
+                        api::llm::ChatCompletionEvent::Error(err) => {
+                            let _ = channel.send(err.to_string());
+                            break;
+                        }
+                    }
+
+                    // Aborted
+                    if !chat_exchanges.contains(&exchange) {
+                        break;
+                    }
+                }
+
+                Ok(())
+            }
+            Err(err) => Err(err),
+        };
+
+        chat_exchanges.remove(&exchange);
+
+        result
     });
 
-    let result = match handle.await {
+    match handle.await {
         Ok(Ok(_)) => Ok(()),
-        Ok(Err(err)) => {
-            if let AiterError::Interrupted(_) = err {
-                Ok(())
-            } else {
-                Err(err)
-            }
-        }
+        Ok(Err(err)) => Err(err),
         Err(err) => Err(err.into()),
-    };
-
-    state.chat_event_senders.remove(exchange);
-
-    result
+    }
 }
 
 #[tauri::command]
-pub async fn chat_abort(
-    exchange: Option<&str>,
-    state: tauri::State<'_, AppState>,
-) -> AiterResult<()> {
-    if let Some(exchange) = exchange {
-        if let Some((_, event_sender)) = state.chat_event_senders.remove(exchange) {
-            event_sender.send(api::llm::ChatEvent::StreamEnd).await?;
-        }
-    }
+pub async fn chat_abort(exchange: &str, state: tauri::State<'_, AppState>) -> AiterResult<()> {
+    state.chat_exchanges.remove(exchange);
 
     Ok(())
 }

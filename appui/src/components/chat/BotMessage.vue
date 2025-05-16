@@ -77,14 +77,14 @@ const tooltipCallTool = (call_tool) => {
                 <el-icon class="mr-2"><i class="ri-hammer-line"></i></el-icon>
                 <span class="flex-1">{{ call_tool.task.description }}</span>
                 <span class="ml-2">
-                  <template v-if="call_tool.time">
-                    <el-icon><i class="ri-check-line"></i></el-icon>
+                  <template v-if="!call_tool.time">
+                    <el-icon class="rotating"><i class="ri-loader-3-line"></i></el-icon>
                   </template>
                   <template v-else-if="call_tool.error">
                     <el-icon><i class="ri-error-warning-line"></i></el-icon>
                   </template>
                   <template v-else>
-                    <el-icon class="rotating"><i class="ri-loader-3-line"></i></el-icon>
+                    <el-icon><i class="ri-check-line"></i></el-icon>
                   </template>
                 </span>
               </div>

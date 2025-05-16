@@ -4,10 +4,7 @@ use serde::Deserialize;
 use serde_json::json;
 use tokio::{sync::mpsc, time::Duration};
 
-use crate::{
-    api, api::chat::ChatOptions, llm::ChatEvent, web::get_mem_write_event_sender,
-    CHANNEL_BUFFER_DEFAULT,
-};
+use crate::{api, api::chat::ChatOptions, web::get_mem_write_event_sender, CHANNEL_BUFFER_DEFAULT};
 
 #[derive(Deserialize, Debug)]
 struct ChatReqData {
@@ -25,10 +22,6 @@ struct ChatReqData {
 
 #[post("/")]
 pub async fn index(data: web::Json<ChatReqData>) -> impl Responder {
-    let (event_sender, mut event_receiver) = mpsc::channel::<ChatEvent>(CHANNEL_BUFFER_DEFAULT);
-    let (sse_event_sender, sse_event_receiver) =
-        mpsc::channel::<sse::Event>(CHANNEL_BUFFER_DEFAULT);
-
     let ai = data.ai.clone();
     let message = data.message.clone();
     let chat_options = ChatOptions::default()
@@ -41,115 +34,118 @@ pub async fn index(data: web::Json<ChatReqData>) -> impl Responder {
         .with_session(data.session.clone())
         .with_strict(data.strict.unwrap_or(false));
 
-    let sse_event_sender_1 = sse_event_sender.clone();
-    tokio::spawn(async move {
-        while let Some(event) = event_receiver.recv().await {
-            match event {
-                ChatEvent::StreamStart => {}
-                ChatEvent::CallToolStart(task) => {
-                    let json_str = json!({ "call_tool_start": task }).to_string();
-                    if sse_event_sender_1
-                        .send(sse::Data::new(json_str).into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::CallToolEnd(task_id, _result, time) => {
-                    let json_str =
-                        json!({ "call_tool_end": { "id": task_id, "time": time } }).to_string();
-                    if sse_event_sender_1
-                        .send(sse::Data::new(json_str).into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::CallToolError(task_id, error) => {
-                    let json_str =
-                        json!({ "call_tool_error": { "id": task_id, "error": error } }).to_string();
-                    if sse_event_sender_1
-                        .send(sse::Data::new(json_str).into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::ReasoningStart => {}
-                ChatEvent::ReasoningContent(content) => {
-                    let json_str = json!({ "reasoning": content }).to_string();
-                    if sse_event_sender_1
-                        .send(sse::Data::new(json_str).into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::ReasoningEnd => {
-                    let json_str = json!({ "reasoning": "\n\n" }).to_string();
-                    if sse_event_sender_1
-                        .send(sse::Data::new(json_str).into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::StreamContent(content) => {
-                    let json_str = json!({ "content": content}).to_string();
-                    if sse_event_sender_1
-                        .send(sse::Data::new(json_str).into())
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                ChatEvent::StreamEnd => {
-                    let _ = sse_event_sender_1
-                        .send(sse::Data::new("[DONE]").into())
-                        .await;
-                    break;
-                }
-            }
-        }
-    });
+    let (sse_event_sender, sse_event_receiver) =
+        mpsc::channel::<sse::Event>(CHANNEL_BUFFER_DEFAULT);
 
-    let sse_event_sender_2 = sse_event_sender.clone();
     if let Ok(mem_write_event_sender) = get_mem_write_event_sender(data.ai.as_deref()).await {
         tokio::spawn(async move {
-            if let Err(err) = api::chat::chat(
+            match api::chat::chat(
                 ai.as_deref(),
                 &message,
                 &chat_options,
                 mem_write_event_sender,
-                Some(event_sender),
             )
             .await
             {
-                let json_str = json!({"content": err.to_string()}).to_string();
-                let _ = sse_event_sender_2
-                    .send(sse::Data::new(json_str).into())
-                    .await;
+                Ok(mut stream) => {
+                    let mut has_content = false;
+                    let mut has_reasoning_content = false;
 
-                let _ = sse_event_sender_2
-                    .send(sse::Data::new("[DONE]").into())
-                    .await;
+                    while let Some(event) = stream.next().await {
+                        match event {
+                            api::llm::ChatCompletionEvent::CallToolStart(task) => {
+                                let json_str = json!({ "call_tool_start": task }).to_string();
+                                if sse_event_sender
+                                    .send(sse::Data::new(json_str).into())
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            api::llm::ChatCompletionEvent::CallToolEnd(task_id, _result, time) => {
+                                let json_str =
+                                    json!({ "call_tool_end": { "id": task_id, "time": time } })
+                                        .to_string();
+                                if sse_event_sender
+                                    .send(sse::Data::new(json_str).into())
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            api::llm::ChatCompletionEvent::CallToolFail(task_id, error, time) => {
+                                let json_str =
+                                    json!({ "call_tool_fail": { "id": task_id, "error": error, "time": time } })
+                                        .to_string();
+                                if sse_event_sender
+                                    .send(sse::Data::new(json_str).into())
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            api::llm::ChatCompletionEvent::Content(content) => {
+                                if !has_content && has_reasoning_content {
+                                    let json_str = json!({ "reasoning": "\n\n" }).to_string();
+                                    if sse_event_sender
+                                        .send(sse::Data::new(json_str).into())
+                                        .await
+                                        .is_err()
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                has_content = true;
+                                let json_str = json!({ "content": content}).to_string();
+                                if sse_event_sender
+                                    .send(sse::Data::new(json_str).into())
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            api::llm::ChatCompletionEvent::ReasoningContent(content) => {
+                                has_reasoning_content = true;
+                                let json_str = json!({ "reasoning": content }).to_string();
+                                if sse_event_sender
+                                    .send(sse::Data::new(json_str).into())
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            api::llm::ChatCompletionEvent::Error(err) => {
+                                let json_str = json!({"content": err.to_string()}).to_string();
+                                let _ =
+                                    sse_event_sender.send(sse::Data::new(json_str).into()).await;
+
+                                let _ =
+                                    sse_event_sender.send(sse::Data::new("[DONE]").into()).await;
+                            }
+                        }
+                    }
+
+                    let _ = sse_event_sender.send(sse::Data::new("[DONE]").into()).await;
+                }
+                Err(err) => {
+                    let json_str = json!({"content": err.to_string()}).to_string();
+                    let _ = sse_event_sender.send(sse::Data::new(json_str).into()).await;
+
+                    let _ = sse_event_sender.send(sse::Data::new("[DONE]").into()).await;
+                }
             }
         });
     } else {
         let json_str = json!({"content": "Spawn mem write error"}).to_string();
-        let _ = sse_event_sender_2
-            .send(sse::Data::new(json_str).into())
-            .await;
+        let _ = sse_event_sender.send(sse::Data::new(json_str).into()).await;
 
-        let _ = sse_event_sender_2
-            .send(sse::Data::new("[DONE]").into())
-            .await;
+        let _ = sse_event_sender.send(sse::Data::new("[DONE]").into()).await;
     }
 
     sse::Sse::from_infallible_receiver(sse_event_receiver)

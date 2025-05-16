@@ -1,7 +1,7 @@
 use std::sync::{Arc, LazyLock};
 
 use aiter::{api, error::AiterResult, CHANNEL_BUFFER_DEFAULT};
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use serde::{Deserialize, Serialize};
 use tauri::async_runtime;
 use tokio::sync::{mpsc, Semaphore};
@@ -15,7 +15,7 @@ static MEM_WRITE_EVENT_SENDERS: LazyLock<DashMap<String, mpsc::Sender<MemWriteEv
 
 struct AppState {
     app_config: AppConfig,
-    chat_event_senders: DashMap<String, mpsc::Sender<api::llm::ChatEvent>>,
+    chat_exchanges: Arc<DashSet<String>>,
     notify_digest_event_sender: Option<mpsc::Sender<NotifyDigestEvent>>,
 }
 
@@ -88,7 +88,7 @@ pub async fn run() {
 
         AppState {
             app_config: app_config.clone(),
-            chat_event_senders: DashMap::new(),
+            chat_exchanges: Arc::new(DashSet::new()),
             notify_digest_event_sender: Some(notify_digest_event_sender),
         }
     } else {
@@ -96,7 +96,7 @@ pub async fn run() {
         // Check out /src/cli/serve.rs for more details about how the server process digesting
         AppState {
             app_config: app_config.clone(),
-            chat_event_senders: DashMap::new(),
+            chat_exchanges: Arc::new(DashSet::new()),
             notify_digest_event_sender: None,
         }
     };

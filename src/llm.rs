@@ -1,26 +1,29 @@
 use std::collections::HashMap;
 
-use crate::{chat::ChatCallToolTask, LLM_CHAT_TEMPERATURE_DEFAULT};
+use tokio::sync::mpsc::Receiver;
+
+use crate::{chat::ChatCallToolTask, AiterError, LLM_CHAT_TEMPERATURE_DEFAULT};
 
 pub mod prompt;
 pub mod provider;
+
+#[derive(Debug)]
+pub enum ChatCompletionEvent {
+    CallToolStart(ChatCallToolTask),
+    CallToolEnd(String, String, String),
+    CallToolFail(String, String, String),
+    Content(String),
+    ReasoningContent(String),
+    Error(AiterError),
+}
 
 pub struct ChatCompletionOptions {
     pub enable_think: bool, // Some multi-mode-models can switch between think/nothink mode, such as qwen3
     pub temperature: f64,
 }
 
-#[derive(Debug)]
-pub enum ChatEvent {
-    StreamStart,
-    CallToolStart(ChatCallToolTask),
-    CallToolEnd(String, String, String),
-    CallToolError(String, String),
-    ReasoningStart,
-    ReasoningContent(String),
-    ReasoningEnd,
-    StreamContent(String),
-    StreamEnd,
+pub struct ChatCompletionStream {
+    receiver: Receiver<ChatCompletionEvent>,
 }
 
 #[derive(Debug)]
@@ -78,5 +81,19 @@ impl ChatCompletionOptions {
     pub fn with_temperature(mut self, temperature: f64) -> Self {
         self.temperature = temperature;
         self
+    }
+}
+
+impl ChatCompletionStream {
+    pub fn new(receiver: Receiver<ChatCompletionEvent>) -> Self {
+        Self { receiver }
+    }
+
+    pub fn close(&mut self) {
+        self.receiver.close()
+    }
+
+    pub async fn next(&mut self) -> Option<ChatCompletionEvent> {
+        self.receiver.recv().await
     }
 }

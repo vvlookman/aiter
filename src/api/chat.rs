@@ -3,16 +3,17 @@ use tokio::sync::{mpsc::Sender, oneshot};
 use crate::{
     api::get_mem_path,
     chat,
-    chat::chat_step,
+    chat::stream_chat,
     db,
     db::mem::MemWriteEvent,
     error::AiterResult,
-    llm::{ChatEvent, ChatMessage, Role},
+    llm,
+    llm::{ChatMessage, Role},
     CHAT_HISTORY_LIMIT,
 };
 
+pub type ChatCompletionStream = llm::ChatCompletionStream;
 pub type ChatOptions = chat::ChatOptions;
-pub type ChatResponseSource = chat::ChatResponseSource;
 pub type HistoryChatEntity = db::mem::history_chat::HistoryChatEntity;
 
 pub async fn chat(
@@ -20,8 +21,7 @@ pub async fn chat(
     question: &str,
     chat_options: &ChatOptions,
     mem_write_event_sender: Sender<MemWriteEvent>,
-    chat_event_sender: Option<Sender<ChatEvent>>,
-) -> AiterResult<(ChatMessage, ChatResponseSource)> {
+) -> AiterResult<ChatCompletionStream> {
     let mem_path = get_mem_path(ai_name).await?;
 
     let max_history = chat_options.retrace.min(CHAT_HISTORY_LIMIT);
@@ -63,14 +63,13 @@ pub async fn chat(
         resp_receiver.await??
     };
 
-    chat_step(
+    stream_chat(
         &mem_path,
         answer_rowid,
         question,
         chat_options,
         &chat_history,
         mem_write_event_sender,
-        chat_event_sender,
     )
     .await
 }

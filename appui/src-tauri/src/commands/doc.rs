@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, fs};
 
 use aiter::{
     api,
@@ -43,7 +43,7 @@ pub async fn doc_learn(
     state: tauri::State<'_, AppState>,
 ) -> AiterResult<DocLearnResult> {
     // Write to temp file
-    let file_path = PathBuf::from(env::temp_dir().join(format!("aiter-{}", Ulid::new())));
+    let file_path = env::temp_dir().join(format!("aiter-{}", Ulid::new()));
     fs::write(&file_path, &file_data)?;
 
     let mem_write_event_sender = get_mem_write_event_sender(ai).await?;
@@ -70,7 +70,7 @@ pub async fn doc_learn(
             };
 
             if let Err(err) = event_sender.send(event).await {
-                return Err(AiterError::from(err).into());
+                return Err(AiterError::from(err));
             }
         }
     }

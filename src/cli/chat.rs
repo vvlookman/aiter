@@ -1,12 +1,12 @@
 use std::io::{stdout, Write};
 
 use aiter::{
-    api::{chat::ChatOptions, llm::ChatEvent},
+    api::{chat::ChatOptions, llm::ChatCompletionEvent},
     *,
 };
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use tokio::{sync::mpsc, time::Duration};
+use tokio::time::Duration;
 
 use crate::cli;
 
@@ -78,8 +78,6 @@ impl ChatCommand {
             return;
         }
 
-        let (event_sender, mut event_receiver) = mpsc::channel::<ChatEvent>(CHANNEL_BUFFER_DEFAULT);
-
         let ai = self.ai.clone();
         let message = self.message.clone();
         let chat_options = ChatOptions::default()
@@ -92,21 +90,6 @@ impl ChatCommand {
             .with_session(self.session.clone())
             .with_strict(self.strict);
 
-        let mem_write_event_sender = api::mem::spawn_mem_write(ai.as_deref())
-            .await
-            .expect("Spawn mem write error");
-
-        let handle = tokio::spawn(async move {
-            api::chat::chat(
-                ai.as_deref(),
-                &message,
-                &chat_options,
-                mem_write_event_sender,
-                Some(event_sender),
-            )
-            .await
-        });
-
         let bot_name = self.ai.clone().unwrap_or("~".to_string()).cyan();
 
         let spinner = ProgressBar::new_spinner();
@@ -114,57 +97,72 @@ impl ChatCommand {
         spinner.set_message(format!("[{}]", bot_name));
         spinner.enable_steady_tick(Duration::from_millis(100));
 
-        while let Some(event) = event_receiver.recv().await {
-            match event {
-                ChatEvent::StreamStart => {
-                    spinner.finish_with_message(format!(
-                        "[{}] {}",
-                        bot_name,
-                        utils::datetime::now_local_datetime_string()
-                    ));
-                }
-                ChatEvent::CallToolStart(task) => {
-                    let task_name = format!("[{}]", task.description);
-                    let task_params = if task.parameters.is_empty() {
-                        "".to_string()
-                    } else {
-                        format!(
-                            " ( {} )",
-                            task.parameters
-                                .iter()
-                                .map(|(k, v)| format!("{}={}", k, v))
-                                .collect::<Vec<String>>()
-                                .join(", ")
-                        )
-                    };
-                    println!("{} {}", task_name, task_params);
-                    stdout().flush().unwrap();
-                }
-                ChatEvent::CallToolEnd(_task_id, _result, _time) => {}
-                ChatEvent::CallToolError(_task_id, _error) => {}
-                ChatEvent::ReasoningStart => {}
-                ChatEvent::ReasoningContent(delta) => {
-                    print!("{}", delta.bright_black());
-                    stdout().flush().unwrap();
-                }
-                ChatEvent::ReasoningEnd => {
-                    print!("\n\n");
-                    stdout().flush().unwrap();
-                }
-                ChatEvent::StreamContent(delta) => {
-                    print!("{}", delta);
-                    stdout().flush().unwrap();
-                }
-                ChatEvent::StreamEnd => {
-                    println!();
-                }
-            }
-        }
+        let mem_write_event_sender = api::mem::spawn_mem_write(ai.as_deref())
+            .await
+            .expect("Spawn mem write error");
 
-        match handle.await {
-            Ok(Ok(_)) => {}
-            Ok(Err(err)) => {
-                spinner.finish_with_message(format!("[{}] {}", bot_name, err.to_string().red()));
+        match api::chat::chat(
+            ai.as_deref(),
+            &message,
+            &chat_options,
+            mem_write_event_sender,
+        )
+        .await
+        {
+            Ok(mut stream) => {
+                spinner.finish_with_message(format!(
+                    "[{}] {}",
+                    bot_name,
+                    utils::datetime::now_local_datetime_string()
+                ));
+
+                let mut has_content = false;
+                let mut has_reasoning_content = false;
+
+                while let Some(event) = stream.next().await {
+                    match event {
+                        ChatCompletionEvent::CallToolStart(task) => {
+                            let task_name = format!("[{}]", task.description);
+                            let task_params = if task.parameters.is_empty() {
+                                "".to_string()
+                            } else {
+                                format!(
+                                    " ( {} )",
+                                    task.parameters
+                                        .iter()
+                                        .map(|(k, v)| format!("{}={}", k, v))
+                                        .collect::<Vec<String>>()
+                                        .join(", ")
+                                )
+                            };
+                            println!("{} {}", task_name, task_params);
+                            stdout().flush().unwrap();
+                        }
+                        ChatCompletionEvent::CallToolEnd(_task_id, _result, _time) => {}
+                        ChatCompletionEvent::CallToolFail(_task_id, _error, _time) => {}
+                        ChatCompletionEvent::Content(delta) => {
+                            if !has_content && has_reasoning_content {
+                                print!("\n\n");
+                                stdout().flush().unwrap();
+                            }
+
+                            has_content = true;
+                            print!("{}", delta);
+                            stdout().flush().unwrap();
+                        }
+                        ChatCompletionEvent::ReasoningContent(delta) => {
+                            has_reasoning_content = true;
+                            print!("{}", delta.bright_black());
+                            stdout().flush().unwrap();
+                        }
+                        ChatCompletionEvent::Error(err) => {
+                            println!("{}", err.to_string().red());
+                            break;
+                        }
+                    }
+                }
+
+                println!();
             }
             Err(err) => {
                 spinner.finish_with_message(format!("[{}] {}", bot_name, err.to_string().red()));

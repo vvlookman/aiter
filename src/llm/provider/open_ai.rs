@@ -3,12 +3,13 @@ use std::collections::HashMap;
 use futures::StreamExt;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc;
 
 use crate::{
     error::*,
-    llm::{provider::*, ChatEvent},
+    llm::{provider::*, ChatCompletionEvent, ChatCompletionStream},
     utils::{json::json_value_to_string, net::join_url},
+    CHANNEL_BUFFER_DEFAULT,
 };
 
 pub struct OpenAiProvider {
@@ -32,134 +33,37 @@ impl ChatProvider for OpenAiProvider {
         &self,
         messages: &[ChatMessage],
         options: &ChatCompletionOptions,
-        chat_event_sender: Option<Sender<ChatEvent>>,
     ) -> AiterResult<ChatMessage> {
-        let request_url = join_url(&self.base_url, "/chat/completions")?;
+        let mut content = String::new();
+        let mut reasoning_content = String::new();
 
-        let mut messages_json_value = messages
-            .iter()
-            .map(chat_message_to_json_value)
-            .collect::<Vec<_>>();
-        if self.model.starts_with("qwen3") && !messages.is_empty() {
-            if let Some(content) = messages_json_value[messages.len() - 1].get_mut("content") {
-                if let Some(content_str) = content.as_str() {
-                    let instruction = if options.enable_think {
-                        "/think"
-                    } else {
-                        "/no_think"
-                    };
-                    *content = format!("{content_str} {instruction}").into();
+        let mut stream = self.stream_chat_completion(messages, options).await?;
+        while let Some(event) = stream.next().await {
+            match event {
+                ChatCompletionEvent::CallToolStart(_task) => {}
+                ChatCompletionEvent::CallToolEnd(_task_id, _result, _time) => {}
+                ChatCompletionEvent::CallToolFail(_task_id, _error, _time) => {}
+                ChatCompletionEvent::Content(delta) => {
+                    content.push_str(&delta);
+                }
+                ChatCompletionEvent::ReasoningContent(delta) => {
+                    reasoning_content.push_str(&delta);
+                }
+                ChatCompletionEvent::Error(err) => {
+                    return Err(err);
                 }
             }
         }
 
-        let request_body = json!({
-            "model": self.model,
-            "messages": messages_json_value,
-            "temperature": options.temperature,
-            "stream": true,
-        });
-
-        let client = reqwest::Client::builder().build()?;
-
-        let response = client
-            .post(request_url)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("Content-Type", "application/json")
-            .json(&request_body)
-            .send()
-            .await?;
-
-        if response.status().is_success() {
-            let mut content = String::new();
-            let mut reasoning = String::new();
-
-            let mut stream = response.bytes_stream();
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk?;
-                let chunk_str = String::from_utf8_lossy(&chunk);
-
-                for line in chunk_str.lines() {
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if data == "[DONE]" {
-                            break;
-                        }
-
-                        let no_content_received = content.is_empty();
-                        let no_reasoning_received = reasoning.is_empty();
-
-                        let json: Value = serde_json::from_str(data)?;
-                        if let Some(delta_content) = json["choices"][0]["delta"]["content"].as_str()
-                        {
-                            content.push_str(delta_content);
-
-                            if let Some(chat_event_sender) = &chat_event_sender {
-                                if no_content_received {
-                                    if no_reasoning_received {
-                                        let _ =
-                                            chat_event_sender.send(ChatEvent::StreamStart).await;
-                                    } else {
-                                        let _ =
-                                            chat_event_sender.send(ChatEvent::ReasoningEnd).await;
-                                    }
-                                }
-
-                                if chat_event_sender
-                                    .send(ChatEvent::StreamContent(delta_content.to_string()))
-                                    .await
-                                    .is_err()
-                                {
-                                    return Err(AiterError::Interrupted(content));
-                                }
-                            }
-                        } else if let Some(delta_reasoning) =
-                            json["choices"][0]["delta"]["reasoning_content"].as_str()
-                        {
-                            reasoning.push_str(delta_reasoning);
-
-                            if let Some(chat_event_sender) = &chat_event_sender {
-                                if no_reasoning_received {
-                                    if no_content_received {
-                                        let _ =
-                                            chat_event_sender.send(ChatEvent::StreamStart).await;
-                                    }
-
-                                    let _ = chat_event_sender.send(ChatEvent::ReasoningStart).await;
-                                }
-
-                                if chat_event_sender
-                                    .send(ChatEvent::ReasoningContent(delta_reasoning.to_string()))
-                                    .await
-                                    .is_err()
-                                {
-                                    return Err(AiterError::Interrupted(content));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if let Some(chat_event_sender) = &chat_event_sender {
-                let _ = chat_event_sender.send(ChatEvent::StreamEnd).await;
-            }
-
-            Ok(ChatMessage {
-                role: Role::Bot,
-                content,
-                reasoning: if reasoning.is_empty() {
-                    None
-                } else {
-                    Some(reasoning)
-                },
-            })
-        } else {
-            Err(AiterError::HttpStatusError(format!(
-                "{} {}",
-                response.status(),
-                response.text().await.ok().unwrap_or_default()
-            )))
-        }
+        Ok(ChatMessage {
+            role: Role::Bot,
+            content,
+            reasoning: if reasoning_content.is_empty() {
+                None
+            } else {
+                Some(reasoning_content)
+            },
+        })
     }
 
     async fn chat_function_calls(
@@ -296,6 +200,110 @@ impl ChatProvider for OpenAiProvider {
             }
 
             Ok(chat_tool_calls)
+        } else {
+            Err(AiterError::HttpStatusError(format!(
+                "{} {}",
+                response.status(),
+                response.text().await.ok().unwrap_or_default()
+            )))
+        }
+    }
+
+    async fn stream_chat_completion(
+        &self,
+        messages: &[ChatMessage],
+        options: &ChatCompletionOptions,
+    ) -> AiterResult<ChatCompletionStream> {
+        let request_url = join_url(&self.base_url, "/chat/completions")?;
+
+        let mut messages_json_value = messages
+            .iter()
+            .map(chat_message_to_json_value)
+            .collect::<Vec<_>>();
+        if self.model.starts_with("qwen3") && !messages.is_empty() {
+            if let Some(content) = messages_json_value[messages.len() - 1].get_mut("content") {
+                if let Some(content_str) = content.as_str() {
+                    let instruction = if options.enable_think {
+                        "/think"
+                    } else {
+                        "/no_think"
+                    };
+                    *content = format!("{content_str} {instruction}").into();
+                }
+            }
+        }
+
+        let request_body = json!({
+            "model": self.model,
+            "messages": messages_json_value,
+            "temperature": options.temperature,
+            "stream": true,
+        });
+
+        let client = reqwest::Client::builder().build()?;
+
+        let response = client
+            .post(request_url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_DEFAULT);
+
+            tokio::spawn(async move {
+                let mut stream = response.bytes_stream();
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(chunk) => {
+                            let chunk_str = String::from_utf8_lossy(&chunk);
+
+                            for line in chunk_str.lines() {
+                                if let Some(data) = line.strip_prefix("data: ") {
+                                    if data == "[DONE]" {
+                                        break;
+                                    }
+
+                                    match serde_json::from_str::<Value>(data) {
+                                        Ok(json) => {
+                                            if let Some(delta_content) =
+                                                json["choices"][0]["delta"]["content"].as_str()
+                                            {
+                                                let _ = sender
+                                                    .send(ChatCompletionEvent::Content(
+                                                        delta_content.to_string(),
+                                                    ))
+                                                    .await;
+                                            } else if let Some(delta_reasoning_content) = json
+                                                ["choices"][0]["delta"]["reasoning_content"]
+                                                .as_str()
+                                            {
+                                                let _ = sender
+                                                    .send(ChatCompletionEvent::ReasoningContent(
+                                                        delta_reasoning_content.to_string(),
+                                                    ))
+                                                    .await;
+                                            }
+                                        }
+                                        Err(err) => {
+                                            let _ = sender
+                                                .send(ChatCompletionEvent::Error(err.into()))
+                                                .await;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            let _ = sender.send(ChatCompletionEvent::Error(err.into())).await;
+                        }
+                    }
+                }
+            });
+
+            Ok(ChatCompletionStream { receiver })
         } else {
             Err(AiterError::HttpStatusError(format!(
                 "{} {}",

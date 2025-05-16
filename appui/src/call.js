@@ -113,7 +113,9 @@ export async function callChatAbort(hooks) {
   if (await getAppConfigRemoteUrl()) {
     return hooks.chatAbortCtrl?.abort();
   } else {
-    return await invoke('chat_abort', hooks);
+    if (hooks.exchange) {
+      return await invoke('chat_abort', hooks);
+    }
   }
 }
 
@@ -351,12 +353,13 @@ export async function callLlmListActivedNames() {
   }
 }
 
-export async function callLlmTestChat(prompt, name, protocol, options, hooks) {
+export async function callLlmTestChat(prompt, exchange, name, protocol, options, hooks) {
   if (await getAppConfigRemoteUrl()) {
     return await api.sse(
       '/llm/test-chat',
       {
         prompt,
+        exchange,
         name,
         protocol,
         options,
@@ -366,6 +369,7 @@ export async function callLlmTestChat(prompt, name, protocol, options, hooks) {
   } else {
     return await invoke('llm_test_chat', {
       prompt,
+      exchange,
       name,
       protocol,
       options,

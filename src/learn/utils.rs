@@ -41,7 +41,6 @@ pub async fn extract_implicit_knowledges(
             &[],
             &ChatCompletionOptions::default().with_temperature(LLM_CHAT_TEMPERATURE_STABLE),
             None,
-            None,
         )
         .await?
         .content,
@@ -55,7 +54,6 @@ pub async fn extract_implicit_knowledges(
                 &prompt,
                 &[],
                 &ChatCompletionOptions::default().with_temperature(LLM_CHAT_TEMPERATURE_STABLE),
-                None,
                 None,
             )
             .await?
@@ -136,7 +134,6 @@ pub async fn extract_questions(text: &str, refers: &[String]) -> AiterResult<Vec
             &[],
             &ChatCompletionOptions::default().with_temperature(LLM_CHAT_TEMPERATURE_STABLE),
             None,
-            None,
         )
         .await?
         .content,
@@ -151,7 +148,6 @@ pub async fn extract_questions(text: &str, refers: &[String]) -> AiterResult<Vec
                 &prompt,
                 &[],
                 &ChatCompletionOptions::default().with_temperature(LLM_CHAT_TEMPERATURE_STABLE),
-                None,
                 None,
             )
             .await?
@@ -207,7 +203,6 @@ pub async fn summarize_across_texts(
                         &[],
                         &ChatCompletionOptions::default()
                             .with_temperature(LLM_CHAT_TEMPERATURE_STABLE),
-                        None,
                         None,
                     )
                     .await?

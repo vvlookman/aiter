@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use tokio::sync::mpsc::Sender;
-
 use crate::{
     db,
     error::*,
@@ -12,8 +10,9 @@ use crate::{
 pub static SUPPORTED_TYPES: &[&str] = &["chat", "reasoning"];
 pub static SUPPORTED_PROTOCOLS: &[&str] = &["openai"];
 
+pub type ChatCompletionEvent = llm::ChatCompletionEvent;
 pub type ChatCompletionOptions = llm::ChatCompletionOptions;
-pub type ChatEvent = llm::ChatEvent;
+pub type ChatCompletionStream = llm::ChatCompletionStream;
 pub type ChatFunction = llm::ChatFunction;
 pub type ChatFunctionCall = llm::ChatFunctionCall;
 pub type ChatMessage = llm::ChatMessage;
@@ -39,7 +38,6 @@ pub async fn chat_completion(
     history: &[ChatMessage],
     chat_completion_options: &ChatCompletionOptions,
     chat_llm_name: Option<&str>,
-    event_sender: Option<Sender<ChatEvent>>,
 ) -> AiterResult<ChatMessage> {
     let name = if chat_llm_name.is_none() {
         get_actived_name("chat").await?
@@ -66,7 +64,7 @@ pub async fn chat_completion(
                     });
 
                     return OpenAiProvider::new(base_url, api_key, model)
-                        .chat_completion(&messages, chat_completion_options, event_sender)
+                        .chat_completion(&messages, chat_completion_options)
                         .await;
                 } else {
                     for k in ["base_url", "model"] {
@@ -272,13 +270,62 @@ pub async fn rename(name: &str, new_name: &str) -> AiterResult<()> {
     Ok(())
 }
 
-pub async fn test_chat(
+pub async fn stream_chat_completion(
+    message: &str,
+    history: &[ChatMessage],
+    chat_completion_options: &ChatCompletionOptions,
+    chat_llm_name: Option<&str>,
+) -> AiterResult<ChatCompletionStream> {
+    let name = if chat_llm_name.is_none() {
+        get_actived_name("chat").await?
+    } else {
+        chat_llm_name.map(|s| s.to_string())
+    };
+
+    if let Some(name) = name {
+        if let Some(LlmEntity {
+            protocol, options, ..
+        }) = get_by_name(&name).await?
+        {
+            if protocol == "openai" {
+                if let (Some(base_url), Some(model)) =
+                    (options.get("base_url"), options.get("model"))
+                {
+                    let api_key = options.get("api_key").map_or("", |v| v);
+
+                    let mut messages = history.to_vec();
+                    messages.push(ChatMessage {
+                        role: Role::User,
+                        content: message.to_string(),
+                        reasoning: None,
+                    });
+
+                    return OpenAiProvider::new(base_url, api_key, model)
+                        .stream_chat_completion(&messages, chat_completion_options)
+                        .await;
+                } else {
+                    for k in ["base_url", "model"] {
+                        if !options.contains_key(k) {
+                            return Err(AiterError::Invalid(format!(
+                                "Missing required option {}",
+                                k
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Err(AiterError::Invalid("No Chat LLM".to_string()))
+}
+
+pub async fn stream_test_chat_completion(
     prompt: &str,
     name: &str,
     protocol: &str,
     options: &HashMap<String, String>,
-    event_sender: Option<Sender<ChatEvent>>,
-) -> AiterResult<String> {
+) -> AiterResult<ChatCompletionStream> {
     if protocol == "openai" {
         if let (Some(base_url), Some(model)) = (options.get("base_url"), options.get("model")) {
             let api_key = options.get("api_key").map_or("", |v| v);
@@ -300,9 +347,8 @@ pub async fn test_chat(
             }];
 
             return OpenAiProvider::new(base_url, &api_key_unmask, model)
-                .chat_completion(&messages, &ChatCompletionOptions::default(), event_sender)
-                .await
-                .map(|message| message.content);
+                .stream_chat_completion(&messages, &ChatCompletionOptions::default())
+                .await;
         } else {
             for k in ["base_url", "model"] {
                 if !options.contains_key(k) {

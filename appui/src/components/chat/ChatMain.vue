@@ -62,47 +62,6 @@ const fetchMessages = async () => {
   }
 };
 
-const processData = (data) => {
-  if (data.trim().length > 0) {
-    state.chatReceiving = true;
-  }
-
-  let content, reasoning, call_tool_start, call_tool_end, call_tool_error;
-  try {
-    const json = JSON.parse(data);
-    content = json.content;
-    reasoning = json.reasoning;
-    call_tool_start = json.call_tool_start;
-    call_tool_end = json.call_tool_end;
-    call_tool_error = json.call_tool_error;
-  } catch {
-    content = data;
-  }
-
-  const currentMessage = state.messages[state.messages.length - 1];
-  if (currentMessage && currentMessage.exchange == state.exchange) {
-    if (content) {
-      currentMessage.content += content;
-    } else if (reasoning) {
-      currentMessage.reasoning += reasoning;
-    } else if (call_tool_start) {
-      currentMessage.call_tools.push({ task: call_tool_start });
-    } else if (call_tool_end) {
-      const i = currentMessage.call_tools.findIndex((item) => item?.task.id == call_tool_end.id);
-      if (i >= 0) {
-        currentMessage.call_tools[i]['time'] = call_tool_end['time'];
-      }
-    } else if (call_tool_error) {
-      const i = currentMessage.call_tools.findIndex((item) => item?.task.id == call_tool_error.id);
-      if (i >= 0) {
-        currentMessage.call_tools[i]['error'] = call_tool_error['error'];
-      }
-    }
-  } else {
-    onStop();
-  }
-};
-
 const onClear = async () => {
   const currentSession = state.session;
 
@@ -123,6 +82,10 @@ const onDeleteExchange = async (e) => {
   state.deletingExchanges.push(e.exchange);
 
   try {
+    if (state.exchange == e.exchange) {
+      await onStop();
+    }
+
     await callChatDelete(aiStore.getActiveName(), state.session, e.exchange);
 
     for (let i = state.messages.length - 1; i >= 0; i--) {
@@ -261,6 +224,50 @@ const onStop = async () => {
     if (!currentMessage.content) {
       state.messages = state.messages.slice(0, -1);
     }
+  }
+
+  state.exchange = null;
+};
+
+const processData = (data) => {
+  if (data.trim().length > 0 && state.exchange) {
+    state.chatReceiving = true;
+  }
+
+  let content, reasoning, call_tool_start, call_tool_end, call_tool_fail;
+  try {
+    const json = JSON.parse(data);
+    content = json.content;
+    reasoning = json.reasoning;
+    call_tool_start = json.call_tool_start;
+    call_tool_end = json.call_tool_end;
+    call_tool_fail = json.call_tool_fail;
+  } catch {
+    content = data;
+  }
+
+  const currentMessage = state.messages[state.messages.length - 1];
+  if (currentMessage && currentMessage.exchange == state.exchange) {
+    if (content) {
+      currentMessage.content += content;
+    } else if (reasoning) {
+      currentMessage.reasoning += reasoning;
+    } else if (call_tool_start) {
+      currentMessage.call_tools.push({ task: call_tool_start });
+    } else if (call_tool_end) {
+      const i = currentMessage.call_tools.findIndex((item) => item?.task.id == call_tool_end.id);
+      if (i >= 0) {
+        currentMessage.call_tools[i]['time'] = call_tool_end['time'];
+      }
+    } else if (call_tool_fail) {
+      const i = currentMessage.call_tools.findIndex((item) => item?.task.id == call_tool_fail.id);
+      if (i >= 0) {
+        currentMessage.call_tools[i]['error'] = call_tool_fail['error'];
+        currentMessage.call_tools[i]['time'] = call_tool_fail['time'];
+      }
+    }
+  } else {
+    onStop();
   }
 };
 
