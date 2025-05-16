@@ -46,6 +46,10 @@ const tooltipCallTool = (call_tool) => {
       .join(', ')} )`;
   }
 
+  if (call_tool.error) {
+    tooltip += ` ${call_tool.error}`;
+  }
+
   return tooltip;
 };
 </script>

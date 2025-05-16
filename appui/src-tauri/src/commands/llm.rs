@@ -4,7 +4,6 @@ use aiter::{
     api,
     error::{AiterError, AiterResult},
 };
-use ulid::Ulid;
 
 use crate::AppState;
 
