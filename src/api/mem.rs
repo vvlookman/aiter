@@ -69,8 +69,7 @@ pub async fn merge(ai_name: Option<&str>, from_ai_name: Option<&str>) -> AiterRe
 
             for table_name in table_names {
                 let insert_sql = format!(
-                    "INSERT OR IGNORE INTO {} SELECT * FROM merge_db.{}",
-                    table_name, table_name
+                    "INSERT OR IGNORE INTO {table_name} SELECT * FROM merge_db.{table_name}"
                 );
 
                 conn.execute(&insert_sql, ()).await?;

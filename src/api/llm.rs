@@ -26,10 +26,7 @@ pub async fn active(r#type: &str, name: &str) -> AiterResult<()> {
         "reasoning" => {
             db::core::config::set(&db::core::config::ConfigKey::ActiveReasoningLlm, name).await
         }
-        _ => Err(AiterError::Invalid(format!(
-            "Invalid LLM type '{}'",
-            r#type
-        ))),
+        _ => Err(AiterError::Invalid(format!("Invalid LLM type '{type}'"))),
     }
 }
 
@@ -70,8 +67,7 @@ pub async fn chat_completion(
                     for k in ["base_url", "model"] {
                         if !options.contains_key(k) {
                             return Err(AiterError::Invalid(format!(
-                                "Missing required option {}",
-                                k
+                                "Missing required option {k}"
                             )));
                         }
                     }
@@ -120,8 +116,7 @@ pub async fn chat_function_calls(
                     for k in ["base_url", "model"] {
                         if !options.contains_key(k) {
                             return Err(AiterError::Invalid(format!(
-                                "Missing required option {}",
-                                k
+                                "Missing required option {k}"
                             )));
                         }
                     }
@@ -307,8 +302,7 @@ pub async fn stream_chat_completion(
                     for k in ["base_url", "model"] {
                         if !options.contains_key(k) {
                             return Err(AiterError::Invalid(format!(
-                                "Missing required option {}",
-                                k
+                                "Missing required option {k}"
                             )));
                         }
                     }
@@ -352,17 +346,13 @@ pub async fn stream_test_chat_completion(
         } else {
             for k in ["base_url", "model"] {
                 if !options.contains_key(k) {
-                    return Err(AiterError::Invalid(format!(
-                        "Missing required option {}",
-                        k
-                    )));
+                    return Err(AiterError::Invalid(format!("Missing required option {k}")));
                 }
             }
         }
     } else {
         return Err(AiterError::Invalid(format!(
-            "Unsupported protocol '{}'",
-            protocol
+            "Unsupported protocol '{protocol}'"
         )));
     }
 

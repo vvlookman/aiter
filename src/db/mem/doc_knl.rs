@@ -48,11 +48,10 @@ CREATE TABLE IF NOT EXISTS "doc_knl" (
     "doc_id"       TEXT NOT NULL,
     "doc_ref"      TEXT NOT NULL,
     "trigger"      TEXT NOT NULL,
-    "trigger_sig"  F16_BLOB({}),
+    "trigger_sig"  F16_BLOB({CURRENT_SIGNATURE_DIMS}),
     "created_at"   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at"   TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
-;"#,
-            CURRENT_SIGNATURE_DIMS
+;"#
         ),
         (),
     )

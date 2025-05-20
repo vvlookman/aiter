@@ -115,7 +115,7 @@ impl DocContent for SheetDoc {
         let mut s = String::new();
 
         for (title, sheet_data) in &self.pages {
-            s.push_str(&format!("# {}", title));
+            s.push_str(&format!("# {title}"));
             s.push_str("\n\n");
 
             s.push_str(&sheet_data.to_string());

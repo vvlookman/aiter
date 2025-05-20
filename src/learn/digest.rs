@@ -290,8 +290,7 @@ impl DocDigestor {
                     let mut refers: Vec<String> = doc_refers.clone();
                     if let Some(title) = &part.title {
                         refers.push(format!(
-                            "这部分内容的标题为`{}`，其中可能包含概括这部分内容的关键信息",
-                            title
+                            "这部分内容的标题为`{title}`，其中可能包含概括这部分内容的关键信息"
                         ));
                     }
 

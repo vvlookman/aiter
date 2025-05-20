@@ -86,19 +86,16 @@ pub fn make_no_answer_prompt(question: &str) -> String {
 }
 
 pub fn make_fix_json_prompt(json: &str) -> String {
-    let prompt = format!(
+    format!(
         r#"
 下面这个 JSON 数据存在格式问题无法解析，尝试在保留数据结构不变的前提下修复数据格式，使其可以被正常解析：
 ```
-{}
+{json}
 ```
 
 在处理时，注意以下几点：
 - 不要包含任何额外的解释或文本，仅返回 JSON 数据。
 - 确保返回的结果是合法的 JSON 格式。
-"#,
-        json
-    );
-
-    prompt
+"#
+    )
 }

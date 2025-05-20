@@ -55,11 +55,10 @@ CREATE TABLE IF NOT EXISTS "skill" (
     "id"           TEXT PRIMARY KEY,
     "tool_id"      TEXT NOT NULL UNIQUE,
     "trigger"      TEXT NOT NULL,
-    "trigger_sig"  F16_BLOB({}),
+    "trigger_sig"  F16_BLOB({CURRENT_SIGNATURE_DIMS}),
     "created_at"   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at"   TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
-;"#,
-            CURRENT_SIGNATURE_DIMS
+;"#
         ),
         (),
     )

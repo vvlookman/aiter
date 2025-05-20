@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS "doc" (
     "content_type"  TEXT NOT NULL,
     "content_size"  INTEGER DEFAULT 0,
     "content_hash"  TEXT NOT NULL,
-    "content_sig"   F16_BLOB({}),
+    "content_sig"   F16_BLOB({CURRENT_SIGNATURE_DIMS}),
     "title"         TEXT,
     "preview"       TEXT NOT NULL,
     "summary"       TEXT,
@@ -91,8 +91,7 @@ CREATE TABLE IF NOT EXISTS "doc" (
     "digest_error"  TEXT,
     "created_at"    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at"    TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
-;"#,
-            CURRENT_SIGNATURE_DIMS
+;"#
         ),
         (),
     )
@@ -439,10 +438,10 @@ pub async fn list_by_ids(db_path: &Path, ids: &[String]) -> AiterResult<Vec<DocE
     let mut rows = conn.query(&format!(r#"
 SELECT "id", "source", "content_type", "title", "preview", "digest_start", "digest_end", "digest_retry", "digest_error", "created_at", "updated_at"
 FROM "doc"
-WHERE "id" IN ({})
+WHERE "id" IN ({placeholders})
 ORDER BY "updated_at" DESC
 ;"#
-, placeholders), ids.to_vec()).await?;
+), ids.to_vec()).await?;
 
     DocEntity::collect_rows(&mut rows).await
 }

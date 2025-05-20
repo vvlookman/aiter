@@ -231,7 +231,7 @@ pub async fn stream_chat(
         // Invoke skills
         let skills = skills_map.values().cloned().collect::<Vec<_>>();
         if !skills.is_empty() {
-            log::debug!("Skills: {:?}", skills);
+            log::debug!("Skills: {skills:?}");
 
             if let Ok(mut call_tool_stream) =
                 stream_invoke_skills(&skills, &question, &chat_history, llm_for_chat.as_deref())
@@ -282,7 +282,7 @@ pub async fn stream_chat(
             candidates.extend(skill_candidates);
         }
 
-        log::debug!("Candidates: {:?}", candidates);
+        log::debug!("Candidates: {candidates:?}");
 
         // Generate answer by candidates
         let chat_stream = if !candidates.is_empty() {
@@ -459,11 +459,11 @@ async fn stream_invoke_skills(
             }
         }
     }
-    log::debug!("Functions: {:?}", functions);
+    log::debug!("Functions: {functions:?}");
 
     let function_calls =
         api::llm::chat_function_calls(&functions, question, chat_history, chat_llm_name).await?;
-    log::debug!("Function calls: {:?}", function_calls);
+    log::debug!("Function calls: {function_calls:?}");
 
     let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_DEFAULT);
     let stream = ChatCompletionStream::new(receiver);
@@ -517,7 +517,7 @@ async fn stream_invoke_skills(
                             ))
                             .await;
 
-                        log::error!("Call function failed: {:?}", err);
+                        log::error!("Call function failed: {err:?}");
                     }
                 };
             });

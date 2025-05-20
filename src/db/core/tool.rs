@@ -247,10 +247,10 @@ pub async fn list_by_ids(ids: &[String]) -> AiterResult<Vec<ToolEntity>> {
     let mut rows = conn.query(&format!(r#"
 SELECT "id", "toolset_id", "toolset_title", "toolset_options", "type", "name", "description", "parameters", "created_at", "updated_at" 
 FROM "tool"
-WHERE "id" IN ({})
+WHERE "id" IN ({placeholders})
 ORDER BY "updated_at" DESC
 ;"#
-, placeholders), ids.to_vec()).await?;
+), ids.to_vec()).await?;
 
     ToolEntity::collect_rows(&mut rows).await
 }

@@ -92,13 +92,13 @@ impl LearnCommand {
         let spinner = ProgressBar::new_spinner();
         spinner
             .set_style(ProgressStyle::with_template("{msg} {spinner:.cyan} [{elapsed}]").unwrap());
-        spinner.set_message(format!("[{}] [{}]", bot_name, filename));
+        spinner.set_message(format!("[{bot_name}] [{filename}]"));
         spinner.enable_steady_tick(Duration::from_millis(100));
 
         while let Some(event) = event_receiver.recv().await {
             match event {
                 ReadEvent::Progress(message) => {
-                    spinner.set_message(format!("[{}] [{}] {}", bot_name, filename, message));
+                    spinner.set_message(format!("[{bot_name}] [{filename}] {message}"));
                 }
             }
         }
@@ -180,13 +180,13 @@ impl LearnCommand {
         let spinner = ProgressBar::new_spinner();
         spinner
             .set_style(ProgressStyle::with_template("{msg} {spinner:.cyan} [{elapsed}]").unwrap());
-        spinner.set_message(format!("[{}] [{}]", bot_name, filename));
+        spinner.set_message(format!("[{bot_name}] [{filename}]"));
         spinner.enable_steady_tick(Duration::from_millis(100));
 
         while let Some(event) = event_receiver.recv().await {
             match event {
                 DigestEvent::Progress(message) => {
-                    spinner.set_message(format!("[{}] {}", bot_name, message));
+                    spinner.set_message(format!("[{bot_name}] {message}"));
                 }
             }
         }

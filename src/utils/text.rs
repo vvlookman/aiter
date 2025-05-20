@@ -27,7 +27,7 @@ pub fn compare_phonetic(a: &str, b: &str) -> Ordering {
 pub fn minhash(text: &str, num_hashes: usize, tokenizer: &Tokenizer) -> AiterResult<Vec<f32>> {
     let tokens = to_tokens(text, tokenizer);
     if tokens.is_empty() {
-        return Err(AiterError::HashError(format!("Failed to hash: {}", text)));
+        return Err(AiterError::HashError(format!("Failed to hash: {text}")));
     }
 
     let build_hasher = BuildHasherDefault::<FnvHasher>::default();

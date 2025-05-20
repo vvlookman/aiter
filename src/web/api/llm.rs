@@ -171,7 +171,7 @@ pub async fn test_chat(data: web::Json<LlmTestChatReqData>) -> impl Responder {
                         }
                         api::llm::ChatCompletionEvent::Error(err) => {
                             let _ = sse_event_sender
-                                .send(sse::Data::new(format!("\n{}", err)).into())
+                                .send(sse::Data::new(format!("\n{err}")).into())
                                 .await;
 
                             let _ = sse_event_sender.send(sse::Data::new("[DONE]").into()).await;
@@ -183,7 +183,7 @@ pub async fn test_chat(data: web::Json<LlmTestChatReqData>) -> impl Responder {
             }
             Err(err) => {
                 let _ = sse_event_sender
-                    .send(sse::Data::new(format!("\n{}", err)).into())
+                    .send(sse::Data::new(format!("\n{err}")).into())
                     .await;
 
                 let _ = sse_event_sender.send(sse::Data::new("[DONE]").into()).await;

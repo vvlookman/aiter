@@ -68,7 +68,7 @@ pub async fn delete(name: &str) -> AiterResult<Option<db::core::ai::AiEntity>> {
     let item = db::core::ai::get_by_name(name).await?;
 
     if let Some(deleted_id) = db::core::ai::delete_by_name(name).await? {
-        let mem_path = DATA_DIR.join(format!("mem_{}.db", deleted_id));
+        let mem_path = DATA_DIR.join(format!("mem_{deleted_id}.db"));
         if mem_path.exists() {
             let _ = remove_file(&mem_path);
         }

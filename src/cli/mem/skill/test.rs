@@ -22,7 +22,7 @@ impl MemSkillTestCommand {
 
         match api::mem::skill::test(self.ai.as_deref(), &self.id, &options).await {
             Ok(result) => {
-                println!("{}", result);
+                println!("{result}");
             }
             Err(err) => {
                 println!("{}", err.to_string().red());

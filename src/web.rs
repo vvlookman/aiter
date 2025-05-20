@@ -63,7 +63,7 @@ pub async fn serve_webui(path: web::Path<String>) -> Result<impl Responder> {
                 if base.starts_with("/") {
                     &base
                 } else {
-                    &format!("/{}", base)
+                    &format!("/{base}")
                 }
             };
 

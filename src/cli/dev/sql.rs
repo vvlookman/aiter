@@ -65,8 +65,8 @@ impl DevSqlCommand {
                 if let Ok(value) = row.get_value(i as i32) {
                     let s = match value {
                         Value::Null => "[Null]",
-                        Value::Integer(i) => &format!("{}", i),
-                        Value::Real(f) => &format!("{}", f),
+                        Value::Integer(i) => &format!("{i}"),
+                        Value::Real(f) => &format!("{f}"),
                         Value::Text(t) => &t.to_string(),
                         Value::Blob(_) => "[Blob]",
                     };

@@ -94,7 +94,7 @@ impl ChatCommand {
 
         let spinner = ProgressBar::new_spinner();
         spinner.set_style(ProgressStyle::with_template("{msg} {spinner:.cyan}").unwrap());
-        spinner.set_message(format!("[{}]", bot_name));
+        spinner.set_message(format!("[{bot_name}]"));
         spinner.enable_steady_tick(Duration::from_millis(100));
 
         let mem_write_event_sender = api::mem::spawn_mem_write(ai.as_deref())
@@ -130,12 +130,12 @@ impl ChatCommand {
                                     " ( {} )",
                                     task.parameters
                                         .iter()
-                                        .map(|(k, v)| format!("{}={}", k, v))
+                                        .map(|(k, v)| format!("{k}={v}"))
                                         .collect::<Vec<String>>()
                                         .join(", ")
                                 )
                             };
-                            println!("{} {}", task_name, task_params);
+                            println!("{task_name} {task_params}");
                             stdout().flush().unwrap();
                         }
                         ChatCompletionEvent::CallToolEnd(_task_id, _result, _time) => {}
@@ -147,7 +147,7 @@ impl ChatCommand {
                             }
 
                             has_content = true;
-                            print!("{}", delta);
+                            print!("{delta}");
                             stdout().flush().unwrap();
                         }
                         ChatCompletionEvent::ReasoningContent(delta) => {

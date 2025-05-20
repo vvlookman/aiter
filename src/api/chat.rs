@@ -32,7 +32,7 @@ pub async fn chat(
             .map(|m| m.into())
             .collect();
     if !chat_history.is_empty() {
-        log::debug!("Retrace history: {:?}", chat_history);
+        log::debug!("Retrace history: {chat_history:?}");
     }
 
     {

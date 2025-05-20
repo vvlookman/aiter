@@ -32,10 +32,10 @@ pub fn to_markdown_doc(path: &Path, _source: &str) -> AiterResult<MarkdownDoc> {
 
         match event {
             Event::Code(s) => {
-                process_text(&format!("`{}`", s));
+                process_text(&format!("`{s}`"));
             }
             Event::DisplayMath(s) => {
-                process_text(&format!("$$\n{}\n$$", s));
+                process_text(&format!("$$\n{s}\n$$"));
             }
             Event::End(end_tag) => {
                 let mut current_text = String::new();
@@ -77,7 +77,7 @@ pub fn to_markdown_doc(path: &Path, _source: &str) -> AiterResult<MarkdownDoc> {
                 process_text(&s);
             }
             Event::InlineMath(s) => {
-                process_text(&format!("$ {} $", s));
+                process_text(&format!("$ {s} $"));
             }
             Event::Rule => {
                 process_text("---\n\n");
@@ -183,19 +183,19 @@ fn format_with_tag(text: &str, tag: Option<&Tag>) -> String {
                 text.trim_start_matches('\n')
                     .trim_end_matches('\n')
                     .split('\n')
-                    .map(|s| format!("> {}", s))
+                    .map(|s| format!("> {s}"))
                     .collect::<Vec<String>>()
                     .join("\n\n")
             ),
             Tag::CodeBlock(kind) => match kind {
                 CodeBlockKind::Indented => {
-                    format!("```\n{}```\n\n", text)
+                    format!("```\n{text}```\n\n")
                 }
                 CodeBlockKind::Fenced(s) => {
-                    format!("```{}\n{}```\n\n", s, text)
+                    format!("```{s}\n{text}```\n\n")
                 }
             },
-            Tag::Emphasis => format!("*{}*", text),
+            Tag::Emphasis => format!("*{text}*"),
             Tag::Heading { level, .. } => {
                 let n = match level {
                     HeadingLevel::H1 => 1,
@@ -207,42 +207,42 @@ fn format_with_tag(text: &str, tag: Option<&Tag>) -> String {
                 };
                 format!("{} {}\n\n", "#".repeat(n), text)
             }
-            Tag::HtmlBlock => format!("{}\n\n", text),
+            Tag::HtmlBlock => format!("{text}\n\n"),
             Tag::Image { .. } => "".to_string(),
-            Tag::Item => format!("- {}\n", text),
+            Tag::Item => format!("- {text}\n"),
             Tag::Link {
                 link_type,
                 dest_url,
                 ..
             } => match link_type {
-                LinkType::Autolink | LinkType::Email => format!("<{}>", text),
-                LinkType::Collapsed => format!("[{}][]", text),
-                LinkType::Inline => format!("[{}]({})", text, dest_url),
-                LinkType::Reference => format!("[{}][{}]", text, dest_url),
-                LinkType::Shortcut => format!("[{}]", text),
+                LinkType::Autolink | LinkType::Email => format!("<{text}>"),
+                LinkType::Collapsed => format!("[{text}][]"),
+                LinkType::Inline => format!("[{text}]({dest_url})"),
+                LinkType::Reference => format!("[{text}][{dest_url}]"),
+                LinkType::Shortcut => format!("[{text}]"),
                 LinkType::WikiLink { has_pothole } => {
                     if *has_pothole {
-                        format!("[[{}|{}]]", text, dest_url)
+                        format!("[[{text}|{dest_url}]]")
                     } else {
-                        format!("[[{}]]", text)
+                        format!("[[{text}]]")
                     }
                 }
                 _ => text.to_string(),
             },
-            Tag::List(_) => format!("{}\n", text),
-            Tag::MetadataBlock(_) => format!("{}\n\n", text),
-            Tag::Paragraph => format!("{}\n\n", text),
-            Tag::Strikethrough => format!("~~{}~~", text),
-            Tag::Strong => format!("**{}**", text),
-            Tag::Subscript => format!("~{}~", text),
-            Tag::Superscript => format!("^{}^", text),
-            Tag::TableCell => format!(" {} |", text),
+            Tag::List(_) => format!("{text}\n"),
+            Tag::MetadataBlock(_) => format!("{text}\n\n"),
+            Tag::Paragraph => format!("{text}\n\n"),
+            Tag::Strikethrough => format!("~~{text}~~"),
+            Tag::Strong => format!("**{text}**"),
+            Tag::Subscript => format!("~{text}~"),
+            Tag::Superscript => format!("^{text}^"),
+            Tag::TableCell => format!(" {text} |"),
             Tag::TableHead => {
-                let head = format!("|{}", text);
+                let head = format!("|{text}");
                 let sep = REGEX_NOT_TABLE_SEP.replace_all(&head, "-");
-                format!("{}\n{}\n", head, sep)
+                format!("{head}\n{sep}\n")
             }
-            Tag::TableRow => format!("|{}\n", text),
+            Tag::TableRow => format!("|{text}\n"),
             _ => text.to_string(),
         }
     } else {

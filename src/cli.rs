@@ -58,7 +58,7 @@ pub enum Commands {
 }
 
 fn confirm_action(prompt: &str) -> bool {
-    print!("{} (y/N) ", prompt);
+    print!("{prompt} (y/N) ");
     stdout().flush().unwrap();
 
     let mut input = String::new();
@@ -69,7 +69,7 @@ fn confirm_action(prompt: &str) -> bool {
 
 fn display_ai(name: Option<&str>, capitalize_first: bool) -> String {
     if let Some(name) = name {
-        format!("AI '{}'", name)
+        format!("AI '{name}'")
     } else {
         format!("{}he default AI", if capitalize_first { "T" } else { "t" })
     }

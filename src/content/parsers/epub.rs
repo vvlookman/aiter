@@ -29,7 +29,7 @@ pub fn to_text_doc(path: &Path, source: &str) -> AiterResult<TextDoc> {
     }
 
     if pages.is_empty() {
-        return Err(AiterError::Invalid(format!("{} is empty", source)));
+        return Err(AiterError::Invalid(format!("{source} is empty")));
     }
 
     let outlines = epub_doc

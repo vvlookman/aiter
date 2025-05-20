@@ -45,11 +45,10 @@ CREATE TABLE IF NOT EXISTS "doc_implicit" (
     "doc_id"        TEXT NOT NULL,
     "content"       TEXT NOT NULL,
     "content_size"  INTEGER DEFAULT 0,
-    "content_sig"   F16_BLOB({}),
+    "content_sig"   F16_BLOB({CURRENT_SIGNATURE_DIMS}),
     "created_at"    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at"    TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
-;"#,
-            CURRENT_SIGNATURE_DIMS
+;"#
         ),
         (),
     )
@@ -176,7 +175,7 @@ pub async fn upsert(
     let signature_dims = get_mem_signature_dims(db_path);
     let tokenizer = get_mem_tokenizer(db_path);
 
-    let content_with_context = format!("**{}** {}", context, content_str);
+    let content_with_context = format!("**{context}** {content_str}");
     let content_words = to_words(&content_with_context, false);
     let content_sig =
         vec_f32_to_f16_str(&minhash(&content_with_context, signature_dims, &tokenizer)?);

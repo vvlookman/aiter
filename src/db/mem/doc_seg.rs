@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS "doc_seg" (
     "content_type"  TEXT NOT NULL,
     "content_size"  INTEGER DEFAULT 0,
     "content_hash"  TEXT NOT NULL,
-    "content_sig"   F16_BLOB({}),
+    "content_sig"   F16_BLOB({CURRENT_SIGNATURE_DIMS}),
     "summary"       TEXT,
     "digest_start"  TIMESTAMP,
     "digest_end"    TIMESTAMP,
@@ -65,8 +65,7 @@ CREATE TABLE IF NOT EXISTS "doc_seg" (
     "digest_error"  TEXT,
     "created_at"    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at"    TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
-;"#,
-            CURRENT_SIGNATURE_DIMS
+;"#
         ),
         (),
     )
@@ -318,7 +317,7 @@ pub async fn upsert(
     let tokenizer = get_mem_tokenizer(db_path);
 
     let content_hash = sha256(content_str.as_bytes());
-    let content_with_context = format!("**{}** {}", context, content_str);
+    let content_with_context = format!("**{context}** {content_str}");
     let content_sig =
         vec_f32_to_f16_str(&minhash(&content_with_context, signature_dims, &tokenizer)?);
 

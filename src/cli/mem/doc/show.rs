@@ -17,7 +17,7 @@ impl MemDocShowCommand {
         match api::mem::doc::get_part_as_text(self.ai.as_deref(), &self.id, self.index).await {
             Ok(content) => {
                 if let Some(content) = content {
-                    println!("{}", content);
+                    println!("{content}");
                 } else {
                     println!("{}", "[Not found]".yellow());
                 }

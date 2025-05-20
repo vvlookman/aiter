@@ -33,7 +33,7 @@ pub fn to_text_doc(path: &Path, source: &str) -> AiterResult<TextDoc> {
     }
 
     if page.trim().is_empty() {
-        return Err(AiterError::Invalid(format!("{} is empty", source)));
+        return Err(AiterError::Invalid(format!("{source} is empty")));
     }
 
     Ok(TextDoc {

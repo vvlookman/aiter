@@ -81,13 +81,13 @@ impl DigestCommand {
         let spinner = ProgressBar::new_spinner();
         spinner
             .set_style(ProgressStyle::with_template("{msg} {spinner:.cyan} [{elapsed}]").unwrap());
-        spinner.set_message(format!("[{}]", bot_name));
+        spinner.set_message(format!("[{bot_name}]"));
         spinner.enable_steady_tick(Duration::from_millis(100));
 
         while let Some(event) = event_receiver.recv().await {
             match event {
                 DigestEvent::Progress(message) => {
-                    spinner.set_message(format!("[{}] {}", bot_name, message));
+                    spinner.set_message(format!("[{bot_name}] {message}"));
                 }
             }
         }

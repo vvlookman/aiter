@@ -132,10 +132,7 @@ pub async fn parse(
             }
         }
     } else {
-        Err(AiterError::Invalid(format!(
-            "Invalid tool type: {}",
-            r#type
-        )))
+        Err(AiterError::Invalid(format!("Invalid tool type: {type}")))
     }
 }
 
@@ -143,8 +140,7 @@ pub async fn run(tool_id: &str, options: &HashMap<String, String>) -> AiterResul
     let tool = db::core::tool::get(tool_id)
         .await?
         .ok_or(AiterError::NotExists(format!(
-            "Tool '{}' not exists",
-            tool_id
+            "Tool '{tool_id}' not exists"
         )))?;
 
     match ToolType::from_str(&tool.r#type)? {

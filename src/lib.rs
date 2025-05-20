@@ -35,7 +35,7 @@ pub async fn init() {
     };
 
     if let Err(err) = ensure_db().await {
-        panic!("Check database error: {}", err);
+        panic!("Check database error: {err}");
     }
 
     // Update database if needed
@@ -43,7 +43,7 @@ pub async fn init() {
         let db_version = db_version_str.parse::<u64>().unwrap_or(CURRENT_DB_VERSION);
         if db_version < CURRENT_DB_VERSION {
             if let Err(err) = api::sys::update().await {
-                panic!("Update database error: {}", err);
+                panic!("Update database error: {err}");
             }
         }
     }

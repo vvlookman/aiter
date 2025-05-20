@@ -396,10 +396,7 @@ pub async fn digest_doc(
             }
         }
     } else {
-        Err(AiterError::NotExists(format!(
-            "Doc '{}' not exists",
-            doc_id
-        )))
+        Err(AiterError::NotExists(format!("Doc '{doc_id}' not exists")))
     }
 }
 
@@ -511,8 +508,7 @@ pub async fn read_doc(
         })
     } else {
         Err(AiterError::NotExists(format!(
-            "Doc '{}' not saved correctly",
-            source
+            "Doc '{source}' not saved correctly"
         )))
     }
 }

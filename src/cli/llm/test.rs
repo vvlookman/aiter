@@ -69,8 +69,7 @@ impl LlmTestCommand {
                 Err(err) => Err(err),
             },
             _ => Err(error::AiterError::Invalid(format!(
-                "Invalid LLM type: {}",
-                r#type
+                "Invalid LLM type: {type}"
             ))),
         };
 
@@ -91,7 +90,7 @@ impl LlmTestCommand {
                             }
 
                             has_content = true;
-                            print!("{}", delta);
+                            print!("{delta}");
                             stdout().flush().unwrap();
                         }
                         ChatCompletionEvent::ReasoningContent(delta) => {

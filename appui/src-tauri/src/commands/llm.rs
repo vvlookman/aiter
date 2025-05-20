@@ -36,7 +36,7 @@ pub async fn llm_config(
     if let Some(saved) = api::llm::get_by_name(name).await? {
         Ok(Some(saved))
     } else {
-        Err(AiterError::NotExists(format!("LLM '{}' not exists", name)))
+        Err(AiterError::NotExists(format!("LLM '{name}' not exists")))
     }
 }
 
@@ -67,7 +67,7 @@ pub async fn llm_edit(
     if let Some(saved) = api::llm::get_by_name(name).await? {
         Ok(Some(saved))
     } else {
-        Err(AiterError::NotExists(format!("LLM '{}' not exists", name)))
+        Err(AiterError::NotExists(format!("LLM '{name}' not exists")))
     }
 }
 

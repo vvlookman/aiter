@@ -63,7 +63,7 @@ impl DocContent for MarkdownDoc {
         let mut s = String::new();
 
         if let Some(title) = &self.title {
-            s.push_str(&format!("# {}", title));
+            s.push_str(&format!("# {title}"));
             s.push_str("\n\n");
         }
 

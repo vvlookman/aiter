@@ -33,8 +33,7 @@ pub async fn add(
         db::mem::skill::get(&mem_path, &skill.id).await
     } else {
         Err(AiterError::NotExists(format!(
-            "Tool '{}' not exists",
-            tool_id
+            "Tool '{tool_id}' not exists"
         )))
     }
 }
@@ -114,8 +113,7 @@ pub async fn test(
     let skill = db::mem::skill::get(&mem_path, skill_id)
         .await?
         .ok_or(AiterError::NotExists(format!(
-            "Skill '{}' not exists",
-            skill_id
+            "Skill '{skill_id}' not exists"
         )))?;
 
     api::tool::run(&skill.tool_id, options).await
