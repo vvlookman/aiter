@@ -1,10 +1,10 @@
 use std::sync::{Arc, LazyLock};
 
-use aiter::{api, error::AiterResult, CHANNEL_BUFFER_DEFAULT};
+use aiter::{CHANNEL_BUFFER_DEFAULT, api, error::AiterResult};
 use dashmap::{DashMap, DashSet};
 use serde::{Deserialize, Serialize};
 use tauri::async_runtime;
-use tokio::sync::{mpsc, Semaphore};
+use tokio::sync::{Semaphore, mpsc};
 
 use crate::api::{learn::DigestOptions, mem::MemWriteEvent};
 

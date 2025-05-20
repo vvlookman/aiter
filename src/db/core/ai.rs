@@ -4,7 +4,7 @@ use tabled::Tabled;
 use ulid::Ulid;
 
 use crate::{
-    db::open, error::AiterResult, utils::datetime::utc_to_iso_datetime_string, DB_CORE_PATH,
+    DB_CORE_PATH, db::open, error::AiterResult, utils::datetime::utc_to_iso_datetime_string,
 };
 
 #[derive(Serialize, Tabled)]

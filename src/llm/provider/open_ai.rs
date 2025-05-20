@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 use futures::StreamExt;
 use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use tokio::sync::mpsc;
 
 use crate::{
-    error::*,
-    llm::{provider::*, ChatCompletionEvent, ChatCompletionStream},
-    utils::{json::json_value_to_string, net::join_url},
     CHANNEL_BUFFER_DEFAULT,
+    error::*,
+    llm::{ChatCompletionEvent, ChatCompletionStream, provider::*},
+    utils::{json::json_value_to_string, net::join_url},
 };
 
 pub struct OpenAiProvider {
@@ -276,9 +276,9 @@ impl ChatProvider for OpenAiProvider {
                                                         delta_content.to_string(),
                                                     ))
                                                     .await;
-                                            } else if let Some(delta_reasoning_content) = json
-                                                ["choices"][0]["delta"]["reasoning_content"]
-                                                .as_str()
+                                            } else if let Some(delta_reasoning_content) =
+                                                json["choices"][0]["delta"]["reasoning_content"]
+                                                    .as_str()
                                             {
                                                 let _ = sender
                                                     .send(ChatCompletionEvent::ReasoningContent(

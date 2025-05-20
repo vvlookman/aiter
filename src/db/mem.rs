@@ -7,7 +7,7 @@ use dashmap::DashMap;
 use tokio::sync::{mpsc, mpsc::Sender, oneshot};
 
 use crate::{
-    error::AiterResult, Tokenizer, CHANNEL_BUFFER_LARGE, CURRENT_SIGNATURE_DIMS, CURRENT_TOKENIZER,
+    CHANNEL_BUFFER_LARGE, CURRENT_SIGNATURE_DIMS, CURRENT_TOKENIZER, Tokenizer, error::AiterResult,
 };
 
 pub mod doc;

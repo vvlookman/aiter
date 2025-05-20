@@ -1,4 +1,4 @@
-use actix_multipart::form::{tempfile::TempFile, text::Text, MultipartForm};
+use actix_multipart::form::{MultipartForm, tempfile::TempFile, text::Text};
 use actix_web::{
     web::{Data, Json},
     *,
@@ -7,9 +7,8 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::{
-    api,
-    web::{get_mem_write_event_sender, AppState, NotifyDigestEvent},
-    AiterError,
+    AiterError, api,
+    web::{AppState, NotifyDigestEvent, get_mem_write_event_sender},
 };
 
 #[derive(Deserialize, Debug)]

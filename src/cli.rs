@@ -1,4 +1,4 @@
-use std::io::{stdin, stdout, Write};
+use std::io::{Write, stdin, stdout};
 
 use aiter::api;
 use clap::Subcommand;
@@ -80,7 +80,10 @@ async fn is_ai_valid(name: Option<&str>) -> bool {
         match api::ai::get(name).await {
             Ok(ai) => {
                 if ai.is_none() {
-                    println!("AI '{}' does not exist, create AI with the `aiter ai new <NAME>` command first", name.yellow());
+                    println!(
+                        "AI '{}' does not exist, create AI with the `aiter ai new <NAME>` command first",
+                        name.yellow()
+                    );
                     return false;
                 }
             }

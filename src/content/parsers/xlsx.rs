@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use calamine::{open_workbook_auto, Reader};
+use calamine::{Reader, open_workbook_auto};
 
 use crate::{
     content::doc::sheet::{SheetData, SheetDoc},

@@ -4,8 +4,8 @@ use probminhash::jaccard::compute_probminhash_jaccard;
 use tokio::task::JoinHandle;
 
 use crate::{
-    db, error::AiterResult, retrieve::RetrieveMethod, utils::text::minhash, Tokenizer,
-    RETRIEVE_FTS_LIMIT, RETRIEVE_VEC_LIMIT,
+    RETRIEVE_FTS_LIMIT, RETRIEVE_VEC_LIMIT, Tokenizer, db, error::AiterResult,
+    retrieve::RetrieveMethod, utils::text::minhash,
 };
 
 pub async fn retrieve_skill(

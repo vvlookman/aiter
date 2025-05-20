@@ -1,7 +1,7 @@
 use actix_web::{web::Json, *};
 use serde::Deserialize;
 
-use crate::{api, AiterError};
+use crate::{AiterError, api};
 
 #[derive(Deserialize, Debug)]
 struct AiAddReqData {

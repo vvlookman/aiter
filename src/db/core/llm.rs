@@ -4,7 +4,7 @@ use libsql::Rows;
 use serde::Serialize;
 use tabled::Tabled;
 
-use crate::{db::open, error::*, utils::datetime::utc_to_iso_datetime_string, DB_CORE_PATH};
+use crate::{DB_CORE_PATH, db::open, error::*, utils::datetime::utc_to_iso_datetime_string};
 
 #[derive(Clone, Serialize, Tabled)]
 pub struct LlmEntity {

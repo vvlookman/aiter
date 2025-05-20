@@ -4,11 +4,12 @@ use libsql::Rows;
 use ulid::Ulid;
 
 use crate::{
-    content,
+    DB_VECTOR_NEIGHBORS, DIGEST_RETRY, content,
     content::frag::FragContent,
     db::{
+        CURRENT_SIGNATURE_DIMS,
         mem::{get_mem_signature_dims, get_mem_tokenizer},
-        open, vec_f32_to_f16_str, CURRENT_SIGNATURE_DIMS,
+        open, vec_f32_to_f16_str,
     },
     error::AiterResult,
     utils::{
@@ -16,7 +17,6 @@ use crate::{
         datetime::utc_to_iso_datetime_string,
         text::{minhash, to_words},
     },
-    DB_VECTOR_NEIGHBORS, DIGEST_RETRY,
 };
 
 /// DocFrag(fragment) is a tiny piece of content in a doc, such as several sentences.

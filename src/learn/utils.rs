@@ -4,28 +4,27 @@ use std::{
 };
 
 use tokio::{
-    sync::{mpsc::Sender, Semaphore},
+    sync::{Semaphore, mpsc::Sender},
     task,
     task::JoinHandle,
 };
 
 use crate::{
-    api,
+    LLM_CHAT_TEMPERATURE_STABLE, TRUNCATE_LOG_MESSAGE, TRUNCATE_PROGRESS_MESSAGE, Tokenizer, api,
     api::learn::DigestEvent,
     error::AiterResult,
     llm::{
+        ChatCompletionOptions,
         prompt::{
             extract::{make_extract_implicit_knowledges_prompt, make_extract_questions_prompt},
             generate::make_fix_json_prompt,
             summarize::make_summarize_text_prompt,
         },
-        ChatCompletionOptions,
     },
     utils::{
         markdown::extract_code_block,
         text::{split_by_max_tokens, truncate_format},
     },
-    Tokenizer, LLM_CHAT_TEMPERATURE_STABLE, TRUNCATE_LOG_MESSAGE, TRUNCATE_PROGRESS_MESSAGE,
 };
 
 pub async fn extract_implicit_knowledges(

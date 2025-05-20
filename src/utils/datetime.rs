@@ -1,9 +1,9 @@
 use std::sync::LazyLock;
 
 use time::{
-    format_description::{well_known::Rfc3339, BorrowedFormatItem},
-    macros::format_description,
     OffsetDateTime, PrimitiveDateTime, UtcOffset,
+    format_description::{BorrowedFormatItem, well_known::Rfc3339},
+    macros::format_description,
 };
 
 static LOCAL_OFFSET: LazyLock<UtcOffset> =

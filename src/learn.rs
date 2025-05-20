@@ -2,8 +2,8 @@ use std::{
     collections::HashSet,
     path::Path,
     sync::{
-        atomic::{AtomicUsize, Ordering::SeqCst},
         Arc,
+        atomic::{AtomicUsize, Ordering::SeqCst},
     },
 };
 
@@ -11,10 +11,11 @@ use tokio::{
     sync::{mpsc, mpsc::Sender, oneshot},
     task,
     task::JoinHandle,
-    time::{sleep, Duration},
+    time::{Duration, sleep},
 };
 
 use crate::{
+    AiterError, CHANNEL_BUFFER_DEFAULT, TRUNCATE_PROGRESS_MESSAGE,
     api::learn::*,
     content::doc::DocContent,
     db,
@@ -22,7 +23,6 @@ use crate::{
     error::AiterResult,
     learn::digest::{DocDigested, DocDigestor},
     utils::text::truncate_format,
-    AiterError, CHANNEL_BUFFER_DEFAULT, TRUNCATE_PROGRESS_MESSAGE,
 };
 
 pub mod digest;

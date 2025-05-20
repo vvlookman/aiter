@@ -1,4 +1,4 @@
-use crate::{db::open, error::*, CURRENT_DB_VERSION, DB_CORE_PATH};
+use crate::{CURRENT_DB_VERSION, DB_CORE_PATH, db::open, error::*};
 
 pub async fn ensure_tables() -> AiterResult<()> {
     let conn = open(&DB_CORE_PATH).await?;

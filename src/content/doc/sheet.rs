@@ -4,16 +4,16 @@ use csv::WriterBuilder;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    SPLIT_TOKENS_OF_SEG, TRUNCATE_PREVIEW, Tokenizer,
     content::{
         doc::{DocContent, DocContentType},
-        seg::{sheet::SheetSegContent, SegContent},
+        seg::{SegContent, sheet::SheetSegContent},
     },
     error::AiterResult,
     utils::{
         compress,
         text::{to_tokens, truncate_format},
     },
-    Tokenizer, SPLIT_TOKENS_OF_SEG, TRUNCATE_PREVIEW,
 };
 
 #[derive(Serialize, Deserialize, Debug, Default)]

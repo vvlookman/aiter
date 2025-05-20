@@ -4,7 +4,7 @@ use libsql::Rows;
 use ulid::Ulid;
 
 use crate::{
-    db::open, error::AiterResult, utils::datetime::utc_to_iso_datetime_string, DIGEST_RETRY,
+    DIGEST_RETRY, db::open, error::AiterResult, utils::datetime::utc_to_iso_datetime_string,
 };
 
 /// DocPart is a complete and separate piece of content in a doc.

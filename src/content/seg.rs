@@ -1,12 +1,12 @@
 use std::fmt::Debug;
 
 use crate::{
+    Tokenizer,
     content::{
         frag::FragContent,
         seg::{sheet::SheetSegContent, text::TextSegContent},
     },
     error::AiterResult,
-    Tokenizer,
 };
 
 pub mod sheet;

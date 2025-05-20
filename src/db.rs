@@ -4,8 +4,8 @@ use half::f16;
 use libsql::{Builder, Connection};
 
 use crate::{
-    error::AiterResult, Tokenizer, CURRENT_DB_VERSION, CURRENT_SIGNATURE_DIMS, CURRENT_TOKENIZER,
-    DB_BUSY_SECS, DB_CORE_PATH,
+    CURRENT_DB_VERSION, CURRENT_SIGNATURE_DIMS, CURRENT_TOKENIZER, DB_BUSY_SECS, DB_CORE_PATH,
+    Tokenizer, error::AiterResult,
 };
 
 pub mod core;

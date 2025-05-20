@@ -4,16 +4,17 @@ use libsql::Rows;
 use ulid::Ulid;
 
 use crate::{
+    DB_VECTOR_NEIGHBORS,
     db::{
+        CURRENT_SIGNATURE_DIMS,
         mem::{doc, get_mem_signature_dims, get_mem_tokenizer},
-        open, vec_f32_to_f16_str, CURRENT_SIGNATURE_DIMS,
+        open, vec_f32_to_f16_str,
     },
     error::AiterResult,
     utils::{
         datetime::utc_to_iso_datetime_string,
         text::{minhash, to_words},
     },
-    DB_VECTOR_NEIGHBORS,
 };
 
 /// DocKnl(knowledge) is a Q&A pair.

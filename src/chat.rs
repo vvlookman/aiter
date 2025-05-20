@@ -13,25 +13,24 @@ use tokio::{
 use ulid::Ulid;
 
 use crate::{
-    api, db,
+    CHANNEL_BUFFER_DEFAULT, LLM_CHAT_TEMPERATURE_STABLE, VecOptions, api, db,
     db::mem::MemWriteEvent,
     error::AiterResult,
     llm::{
+        ChatCompletionEvent, ChatCompletionOptions, ChatCompletionStream, ChatFunction,
+        ChatMessage, Role,
         prompt::{
             generate::{make_answer_by_candidates_prompt, make_no_answer_prompt},
             intent::{make_extract_queries_prompt, make_simplify_queries_prompt},
         },
-        ChatCompletionEvent, ChatCompletionOptions, ChatCompletionStream, ChatFunction,
-        ChatMessage, Role,
     },
     retrieve::{
+        RetrieveMethod,
         doc::{retrieve_doc_frag, retrieve_doc_implicit, retrieve_doc_knl},
         skill::retrieve_skill,
-        RetrieveMethod,
     },
-    tool::{ahp::chat_function_from_ahp, mcp::chat_function_from_mcp, ToolType},
+    tool::{ToolType, ahp::chat_function_from_ahp, mcp::chat_function_from_mcp},
     utils::{datetime::now_iso_datetime_string, markdown::extract_code_block},
-    VecOptions, CHANNEL_BUFFER_DEFAULT, LLM_CHAT_TEMPERATURE_STABLE,
 };
 
 #[derive(Default)]

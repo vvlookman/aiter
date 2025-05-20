@@ -1,8 +1,8 @@
 use std::{io, io::Write};
 
 use flate2::{
-    write::{DeflateDecoder, DeflateEncoder},
     Compression,
+    write::{DeflateDecoder, DeflateEncoder},
 };
 
 pub fn encode(data: &[u8]) -> io::Result<Vec<u8>> {

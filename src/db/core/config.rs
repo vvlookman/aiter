@@ -1,4 +1,4 @@
-use crate::{db::open, error::*, DB_CORE_PATH};
+use crate::{DB_CORE_PATH, db::open, error::*};
 
 #[derive(strum::Display, strum::EnumString)]
 pub enum ConfigKey {

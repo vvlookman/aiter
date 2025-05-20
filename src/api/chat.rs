@@ -1,6 +1,7 @@
 use tokio::sync::{mpsc::Sender, oneshot};
 
 use crate::{
+    CHAT_HISTORY_LIMIT,
     api::get_mem_path,
     chat,
     chat::stream_chat,
@@ -9,7 +10,6 @@ use crate::{
     error::AiterResult,
     llm,
     llm::{ChatMessage, Role},
-    CHAT_HISTORY_LIMIT,
 };
 
 pub type ChatCompletionStream = llm::ChatCompletionStream;

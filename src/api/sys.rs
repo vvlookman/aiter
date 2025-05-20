@@ -1,4 +1,4 @@
-use crate::{api, db, error::AiterResult, DATA_DIR, DB_DEFAULT_MEM_PATH};
+use crate::{DATA_DIR, DB_DEFAULT_MEM_PATH, api, db, error::AiterResult};
 
 pub async fn get_data_path() -> String {
     DATA_DIR.to_string_lossy().to_string()

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use geo::{Distance, Euclidean, Geometry};
 use geojson::GeoJson;
-use rstar::{PointDistance, RTree, RTreeObject, AABB};
+use rstar::{AABB, PointDistance, RTree, RTreeObject};
 
 use crate::{error::AiterResult, utils::json::json_value_to_string};
 

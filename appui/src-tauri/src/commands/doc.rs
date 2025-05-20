@@ -7,7 +7,7 @@ use aiter::{
 use serde::Serialize;
 use ulid::Ulid;
 
-use crate::{get_mem_write_event_sender, AppState, NotifyDigestEvent};
+use crate::{AppState, NotifyDigestEvent, get_mem_write_event_sender};
 
 #[tauri::command]
 pub async fn doc_count_part(ai: Option<&str>, id: &str) -> AiterResult<u64> {

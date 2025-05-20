@@ -5,7 +5,7 @@ use serde::Serialize;
 use ulid::Ulid;
 
 use crate::{
-    db::open, error::AiterResult, utils::datetime::utc_to_iso_datetime_string, AiterError,
+    AiterError, db::open, error::AiterResult, utils::datetime::utc_to_iso_datetime_string,
 };
 
 #[derive(Debug, Serialize)]

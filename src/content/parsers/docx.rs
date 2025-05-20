@@ -1,8 +1,8 @@
 use std::{fs::File, io::Read, path::Path};
 
 use docx_rs::{
-    read_docx, DocumentChild, Table, TableCellContent, TableChild::TableRow,
-    TableRowChild::TableCell,
+    DocumentChild, Table, TableCellContent, TableChild::TableRow, TableRowChild::TableCell,
+    read_docx,
 };
 
 use crate::{

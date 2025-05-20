@@ -1,16 +1,16 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    SPLIT_TOKENS_OF_SEG, TRUNCATE_PREVIEW, Tokenizer,
     content::{
         doc::{DocContent, DocContentType},
-        seg::{text::TextSegContent, SegContent},
+        seg::{SegContent, text::TextSegContent},
     },
     error::AiterResult,
     utils::{
         compress,
         text::{split_markdown_by_max_tokens, truncate_format},
     },
-    Tokenizer, SPLIT_TOKENS_OF_SEG, TRUNCATE_PREVIEW,
 };
 
 #[derive(Serialize, Deserialize, Debug, Default)]

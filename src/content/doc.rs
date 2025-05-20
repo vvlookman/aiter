@@ -1,12 +1,12 @@
 use std::fmt::Debug;
 
 use crate::{
+    Tokenizer,
     content::{
         doc::{markdown::MarkdownDoc, sheet::SheetDoc, text::TextDoc},
         seg::SegContent,
     },
     error::AiterResult,
-    Tokenizer,
 };
 
 pub mod markdown;

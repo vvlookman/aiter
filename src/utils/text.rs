@@ -10,8 +10,8 @@ use tiktoken_rs::*;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    error::{AiterError, AiterResult},
     TRUNCATE_LOG_MESSAGE,
+    error::{AiterError, AiterResult},
 };
 
 #[derive(strum::EnumString, strum::Display, Copy, Clone)]
@@ -99,11 +99,7 @@ pub fn truncate_format(text: &str, max_chars: usize, replace_lf: bool) -> String
     let (s, t) = truncate(text, max_chars);
     let s = if t { s + "..." } else { s };
 
-    if replace_lf {
-        s.replace("\n", " ")
-    } else {
-        s
-    }
+    if replace_lf { s.replace("\n", " ") } else { s }
 }
 
 static JIEBA: LazyLock<Jieba> = LazyLock::new(Jieba::new);

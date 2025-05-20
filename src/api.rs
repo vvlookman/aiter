@@ -1,7 +1,6 @@
 use crate::{
-    db,
+    DATA_DIR, PathBuf, db,
     error::{AiterError, AiterResult},
-    PathBuf, DATA_DIR,
 };
 
 pub mod ai;

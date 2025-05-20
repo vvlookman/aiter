@@ -9,8 +9,8 @@ use probminhash::jaccard::compute_probminhash_jaccard;
 use tokio::task::JoinHandle;
 
 use crate::{
-    content, db, error::AiterResult, retrieve::RetrieveMethod, utils::text::minhash, Tokenizer,
-    RETRIEVE_FRAG_SURROUND, RETRIEVE_FTS_LIMIT, RETRIEVE_VEC_LIMIT,
+    RETRIEVE_FRAG_SURROUND, RETRIEVE_FTS_LIMIT, RETRIEVE_VEC_LIMIT, Tokenizer, content, db,
+    error::AiterResult, retrieve::RetrieveMethod, utils::text::minhash,
 };
 
 pub async fn retrieve_doc_implicit(

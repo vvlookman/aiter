@@ -1,15 +1,15 @@
 use std::{collections::HashMap, str::FromStr};
 
 use crate::{
+    AiterError, VecOptions,
     api::get_mem_path,
     db,
     error::AiterResult,
     tool::{
+        ToolType,
         ahp::{parse_ahp, run_ahp},
         mcp::{parse_mcp, run_mcp},
-        ToolType,
     },
-    AiterError, VecOptions,
 };
 
 pub type Tool = db::core::tool::Tool;

@@ -4,15 +4,15 @@ use libsql::Rows;
 use ulid::Ulid;
 
 use crate::{
-    content,
+    DB_VECTOR_NEIGHBORS, DIGEST_RETRY, content,
     content::seg::SegContent,
     db::{
+        CURRENT_SIGNATURE_DIMS,
         mem::{get_mem_signature_dims, get_mem_tokenizer},
-        open, vec_f32_to_f16_str, CURRENT_SIGNATURE_DIMS,
+        open, vec_f32_to_f16_str,
     },
     error::AiterResult,
     utils::{crypto::sha256, datetime::utc_to_iso_datetime_string, text::minhash},
-    DB_VECTOR_NEIGHBORS, DIGEST_RETRY,
 };
 
 /// DocSeg(segment) is a continuous piece of content in a part of doc that has a certain degree of independence and integrity.

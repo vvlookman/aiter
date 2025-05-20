@@ -4,10 +4,10 @@ use std::{
 };
 
 use crate::{
+    DATA_DIR,
     api::{get_docs_dir_path, get_mem_path},
     db,
     error::{AiterError, AiterResult},
-    DATA_DIR,
 };
 
 pub type AiEntity = db::core::ai::AiEntity;

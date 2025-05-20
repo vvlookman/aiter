@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    Tokenizer,
     content::{
         doc::sheet::SheetData,
         frag::FragContent,
@@ -8,7 +9,6 @@ use crate::{
     },
     error::AiterResult,
     utils::compress,
-    Tokenizer,
 };
 
 #[derive(Serialize, Deserialize, Debug, Default)]

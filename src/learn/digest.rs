@@ -12,28 +12,27 @@ use tokio::{
     sync::mpsc::Sender,
     task,
     task::JoinHandle,
-    time::{sleep, Duration},
+    time::{Duration, sleep},
 };
 
 use crate::{
-    api, content,
+    FILTER_INFORMATIVE_TOKENS, LLM_CHAT_TEMPERATURE_STABLE, SPLIT_TOKENS_OF_SEG,
+    TRUNCATE_PROGRESS_MESSAGE, api, content,
     content::{
-        doc::{sheet::SheetDoc, DocContentType},
+        doc::{DocContentType, sheet::SheetDoc},
         seg::SegContentType,
     },
     db::mem::get_mem_tokenizer,
     error::AiterResult,
     learn::{DigestEvent, *},
     llm::{
-        prompt::summarize::{make_summarize_sheet_prompt, make_summarize_text_prompt},
         ChatCompletionOptions,
+        prompt::summarize::{make_summarize_sheet_prompt, make_summarize_text_prompt},
     },
     utils::{
         markdown::extract_code_block,
         text::{to_tokens, truncate_format},
     },
-    FILTER_INFORMATIVE_TOKENS, LLM_CHAT_TEMPERATURE_STABLE, SPLIT_TOKENS_OF_SEG,
-    TRUNCATE_PROGRESS_MESSAGE,
 };
 
 pub struct DocDigestor {

@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use ulid::Ulid;
 
 use crate::{
+    AiterError,
     db::core::tool::{Tool, ToolEntity},
     error::AiterResult,
     llm::{ChatFunction, ChatFunctionParameter},
@@ -13,7 +14,6 @@ use crate::{
         json::{json_value_to_string, string_to_json_value},
         net::{http_get, http_post},
     },
-    AiterError,
 };
 
 pub fn chat_function_from_ahp(tool: &ToolEntity) -> AiterResult<ChatFunction> {

@@ -115,7 +115,7 @@ pub async fn read_doc(
             _ => {
                 return Err(AiterError::Unsupported(format!(
                     "Format '{suffix}' is not currently supported"
-                )))
+                )));
             }
         };
 

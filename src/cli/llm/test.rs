@@ -1,4 +1,4 @@
-use std::io::{stdout, Write};
+use std::io::{Write, stdout};
 
 use aiter::{
     api::llm::{ChatCompletionEvent, ChatCompletionOptions, ChatCompletionStream},

@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::json;
 use tokio::{sync::mpsc, time::Duration};
 
-use crate::{api, AiterError, CHANNEL_BUFFER_DEFAULT};
+use crate::{AiterError, CHANNEL_BUFFER_DEFAULT, api};
 
 #[derive(Deserialize, Debug)]
 struct LlmActiveReqData {

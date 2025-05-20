@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::json;
 use tokio::{sync::mpsc, time::Duration};
 
-use crate::{api, api::chat::ChatOptions, web::get_mem_write_event_sender, CHANNEL_BUFFER_DEFAULT};
+use crate::{CHANNEL_BUFFER_DEFAULT, api, api::chat::ChatOptions, web::get_mem_write_event_sender};
 
 #[derive(Deserialize, Debug)]
 struct ChatReqData {

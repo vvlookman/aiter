@@ -3,10 +3,10 @@ use serde::Serialize;
 use tabled::Tabled;
 
 use crate::{
+    DB_CORE_PATH,
     db::{core::tool::datetime::utc_to_iso_datetime_string, open},
     error::AiterResult,
     utils::{datetime, text::to_words},
-    DB_CORE_PATH,
 };
 
 #[derive(Debug, Serialize)]

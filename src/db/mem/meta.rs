@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{db::open, error::*, CURRENT_DB_VERSION, CURRENT_SIGNATURE_DIMS, CURRENT_TOKENIZER};
+use crate::{CURRENT_DB_VERSION, CURRENT_SIGNATURE_DIMS, CURRENT_TOKENIZER, db::open, error::*};
 
 pub async fn ensure_tables(db_path: &Path) -> AiterResult<()> {
     let conn = open(db_path).await?;

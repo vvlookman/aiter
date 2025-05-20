@@ -2,23 +2,22 @@ use std::{num::NonZero, sync::Arc};
 
 use actix_cors::Cors;
 use actix_web::{
+    App, HttpServer,
     dev::Service,
     error::ErrorUnauthorized,
     http::header::AUTHORIZATION,
-    web::{scope, Data},
-    App, HttpServer,
+    web::{Data, scope},
 };
 use aiter::{
-    api,
+    CHANNEL_BUFFER_DEFAULT, api,
     api::learn::DigestOptions,
     error::*,
     utils::crypto::sha256,
     web,
     web::{AppConfig, AppState, NotifyDigestEvent},
-    CHANNEL_BUFFER_DEFAULT,
 };
 use colored::Colorize;
-use tokio::sync::{mpsc, Semaphore};
+use tokio::sync::{Semaphore, mpsc};
 
 #[derive(clap::Args)]
 pub struct ServeCommand {

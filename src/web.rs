@@ -3,10 +3,10 @@ use std::sync::LazyLock;
 use actix_web::*;
 use dashmap::DashMap;
 use rust_embed::RustEmbed;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 use crate::{
-    api::mem::{spawn_mem_write, MemWriteEvent},
+    api::mem::{MemWriteEvent, spawn_mem_write},
     db,
     error::AiterResult,
 };

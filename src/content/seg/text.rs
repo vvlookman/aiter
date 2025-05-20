@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    SPLIT_TOKENS_OF_FRAG, Tokenizer,
     content::{
-        frag::{text::TextFragContent, FragContent},
+        frag::{FragContent, text::TextFragContent},
         seg::{SegContent, SegContentType},
     },
     error::AiterResult,
     utils::{compress, text::split_by_max_tokens},
-    Tokenizer, SPLIT_TOKENS_OF_FRAG,
 };
 
 #[derive(Serialize, Deserialize, Debug, Default)]

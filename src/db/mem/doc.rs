@@ -6,11 +6,12 @@ use tabled::Tabled;
 use ulid::Ulid;
 
 use crate::{
-    content,
+    DB_VECTOR_NEIGHBORS, DIGEST_RETRY, content,
     content::doc::DocContent,
     db::{
+        CURRENT_SIGNATURE_DIMS,
         mem::{get_mem_signature_dims, get_mem_tokenizer},
-        open, vec_f32_to_f16_str, CURRENT_SIGNATURE_DIMS,
+        open, vec_f32_to_f16_str,
     },
     error::AiterResult,
     utils::{
@@ -19,7 +20,6 @@ use crate::{
         fs::extract_filestem_from_path,
         text::{minhash, to_words},
     },
-    DB_VECTOR_NEIGHBORS, DIGEST_RETRY,
 };
 
 /// Doc represents a piece of self-relevant content, usually from a book, a movie, etc.

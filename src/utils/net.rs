@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use reqwest::Method;
 use url::Url;
 
-use crate::{error::AiterResult, AiterError};
+use crate::{AiterError, error::AiterResult};
 
 pub async fn http_get(
     url: &str,
