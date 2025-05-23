@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "Aiter"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "aiter",
  "dashmap",
@@ -359,7 +359,7 @@ dependencies = [
 
 [[package]]
 name = "aiter"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "actix-cors",
  "actix-multipart",
