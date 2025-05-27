@@ -21,7 +21,7 @@
 **注意** 通过 Web 服务只能访问部分功能，完整功能可通过 App 或命令行使用。还可以通过 App 中的「远程」功能连接 Web 服务。
 
 ```sh
-docker run -name aiter -itd -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 vvlookman/aiter
+docker run --name aiter -itd -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 vvlookman/aiter
 ```
 
 ### 使用命令行

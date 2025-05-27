@@ -21,7 +21,7 @@ The term "deep understanding" refers to the process that in addition to content 
 **Notice** Only some features can be accessed via the web, all features need to be used via the App or CLI. You can also connect to Web services through the "Remote" function in the App.
 
 ```sh
-docker run -name aiter -itd -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 vvlookman/aiter
+docker run --name aiter -itd -v ~/Library/Application\ Support/aiter:/root/.local/share/aiter -p 6868:6868 vvlookman/aiter
 ```
 
 ### Use CLI
