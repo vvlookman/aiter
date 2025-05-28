@@ -50,9 +50,9 @@ serde_json = "1.0.140"
 sha2 = "0.10.9"
 strum = { version = "0.27.1", features = ["derive"] }
 tabled = "0.19.0"
-text-splitter = { version = "0.26.0", features = ["markdown", "tiktoken-rs"] }
+text-splitter = { version = "0.27.0", features = ["markdown", "tiktoken-rs"] }
 thiserror = "2.0.12"
-tiktoken-rs = "0.6.0"
+tiktoken-rs = "0.7.0"
 time = { version = "0.3.41", features = ["local-offset"] }
 tokio = { version = "1.45.0", features = [
   "macros",

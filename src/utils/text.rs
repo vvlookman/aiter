@@ -48,9 +48,7 @@ pub fn split_by_max_tokens(text: &str, max_tokens: usize, tokenizer: &Tokenizer)
         Tokenizer::O200kBase => o200k_base_singleton(),
     };
 
-    let sizer = bpe.lock();
-    let splitter = TextSplitter::new(ChunkConfig::new(max_tokens).with_sizer(&*sizer));
-
+    let splitter = TextSplitter::new(ChunkConfig::new(max_tokens).with_sizer(bpe));
     splitter.chunks(text).map(|s| s.to_string()).collect()
 }
 
@@ -63,9 +61,7 @@ pub fn split_markdown_by_max_tokens(
         Tokenizer::O200kBase => o200k_base_singleton(),
     };
 
-    let sizer = bpe.lock();
-    let splitter = MarkdownSplitter::new(ChunkConfig::new(max_tokens).with_sizer(&*sizer));
-
+    let splitter = MarkdownSplitter::new(ChunkConfig::new(max_tokens).with_sizer(bpe));
     splitter.chunks(text).map(|s| s.to_string()).collect()
 }
 
@@ -73,7 +69,7 @@ pub fn to_tokens(text: &str, tokenizer: &Tokenizer) -> Vec<u32> {
     match tokenizer {
         Tokenizer::O200kBase => {
             let bpe = o200k_base_singleton();
-            (*bpe.lock()).encode_ordinary(text)
+            bpe.encode_ordinary(text)
         }
     }
 }
